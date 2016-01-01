@@ -1,0 +1,30 @@
+# Makefile for Synth GUI (Rapsberry Pi)
+
+TARGET = synthgui
+OBJS = SynthGUI.o GUI.o fontengine.o \
+	Patch.o Oscillator.o Modulator.o Envelope.o Messages.o
+
+CC = g++
+RM = rm
+
+INCDIR = 
+#CFLAGS := -DRPI -O2 -Wall $(shell sdl-config --cflags)
+#CFLAGS := -DRPI -Wall $(shell sdl-config --cflags)
+CFLAGS := -DRPI -Wall $(shell sdl2-config --cflags)
+CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
+#ASFLAGS = $(CFLAGS)
+
+# note: -lrt for mqueue stuff
+LIBDIR = 
+#LDFLAGS := $(shell sdl-config --libs) -lSDLmain -lSDL -lm -lstdc++ -lrt
+LDFLAGS := $(shell sdl2-config --libs) -lm -lstdc++ -lrt
+
+all: $(TARGET)
+
+$(TARGET): $(OBJS)
+	$(CC) $(LDFLAGS) -o $(TARGET) $(OBJS)
+
+clean:
+	$(RM) -f $(TARGET)
+	$(RM) -f $(OBJS)
+
