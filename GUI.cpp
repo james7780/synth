@@ -140,6 +140,8 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 	SDL_RenderGetLogicalSize(renderer, &parentWidth, &parentHeight);
 
 	const int MARGIN = 8;
+	const int CW = 60;
+	const int CH = 17;
 	const int POPUPWIDTH = parentWidth - 2 * MARGIN;
 	const int POPUPHEIGHT = POPUPWIDTH / 2;
 
@@ -157,6 +159,9 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 //	gmPopup.m_drawContext.m_font = smallFont;
 //	gmPopup.m_drawContext.SetForeColour(255, 255, 255, 0);
 	gmPopup.m_drawContext.SetBackColour(0, 0, 0, 255);
+
+	// Create Done button
+	CGUIButton *doneButton = gmPopup.AddButton(x0 + POPUPWIDTH - MARGIN - CW, y0 + MARGIN, CW, CH, "doneButton", "Done");
 
 	SDL_Rect kbRect = popupRect;
 	kbRect.x += MARGIN;
@@ -215,7 +220,12 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 					}
 					break;
 				case SDL_MOUSEBUTTONUP :
-					//gmPopup.OnMouseUp(event.button.x, event.button.y);
+					{
+					CGUIControl *control = gmPopup.OnMouseUp(event.button.x, event.button.y);
+					// If done button clicked, then close
+					if (control == doneButton)
+						done = true;
+					}
 					break;
 				}	// end switch
 			}	// wend event
