@@ -5,48 +5,57 @@
 2. Requirements
 
 	To sound good: 
-	- At least 8 notes polyphonic (16 voices)
-	- Each note must be multi-timbral (multiple oscillators)
-	- ADSR envelope
+	- At least 16 notes polyphonic (32 voices)
+	- Each note must be multi-timbral (2 oscillators)
+	- DAPDSR envelope
 	- Various oscillator waveforms
-		+ noise
-		+ custom wave
+		+ SQR / SAW / TRI / SINE / NOISE
+		+ custom wave						[TODO]
 		+ "phase shifting" the waveform ("variable duty cycle")
 	- LFO and modulation
-		- LFO waveforms
+		- LFO waveforms (+ INVERT option)			[TODO - Invert]
+			- SQR / SAW / TRI / SINE
 		- Route LFO to pitch or volume or filter
-	- Effects on individual notes or master output
-		- Compression
-		- Reverb / delay / chorus
-		- Filter cutoff and "Q"
-	- Sample playback
+			- (This is done via LFO envelopes)
+	- Effects on individual voices:
+		- Vol envelope and vol LFO envelope
+		- Pitch envelope and pitch LFO envelope
+		- Filter cutoff envelope and filter LFO envelope
+		- PWM envelope and PWM LFO envelope ("phase interpolation")
+	- Effects on master output
+		- Filter cutoff and "Q" (resonance)			[TODO - resonance]
+		- Compression  (prevent clipping)			[TODO - improve]
+		- Reverb / delay					[TODO - improve]
+		- Chorus						[TODO]
+	- Sample playback						[TODO]
 		- For audio tracks
 
 	Control:
 	- Triggering notes
 		- Handle MIDI note on / note off messages
-		- Handle "running" note on/off messages (?)
+		- Handle "running" note on/off messages
 	- Modulation
 		- MIDI Pitch bend messages
 		- MIDI Mod wheel messages
-	- Tweaking parameters
+		- LFO depth and rate
+	- Tweaking patch parameters
 		- MIDI control messages
 		- Use de-facto standard message numbers
 	- Selecting patches
 		- MIDI patch select messages
 		- Use de-facto standards for patch select
-	- Mapping MIDI channels to patches
+	- Mapping MIDI channels to patches				[TODO]
 		- For supporting keyboard splits, drums etc
-	- Arpeggiator
+	- Arpeggiator							[TODO]	
 		- Various patterns
 		- Custom patterns
 		- Various speeds
-	- Timing and sync
+	- Timing and sync						[TODO]
 		- Set BPM (for arpegiattor, sequencer etc)
 		- Sync to external (MIDI sync)
 
 	Composing:
-	- Sequencer
+	- Sequencer							[TODO]
 		- Sends MIDI message to the synth engine
 		- Separate app from the synth engine?
 		- Tracker? "Phrase sequencer"?
@@ -57,11 +66,11 @@
 
 3. Design/Implementation:
 
-- Synth engine (C++) running in one process 
+- Synth engine (C++) running in one process				[DONE]
 - Sequencer etc running on another core
-- GUI (python) running in another process
-- UI and synth / sequencer talk to each other using IPC (mqueue)
-- OO C++ and Python
+- GUI (C++) running in another process					[DONE]
+- UI and synth / sequencer talk to each other using IPC (mqueue)	[DONE]
+- OO C++								[DONE]
 - Portability
 
 
@@ -69,22 +78,25 @@ CWaveSynth:
 	- Manage Patches
 		- Patch collection
 		- Save / load patches
-		- Copy patches
+		- Copy patches						[TODO]
 	- Manages active voices
 		- Assigns voices (NoteOn())
+			- TODO Mono mode				[TODO]
+			- TODO Voice stealing				[TODO]
 		- Sets up voices with Patch settings
 		- Updates voices
-			- Update voice vol/pitch/filter from patch envelopes
-			- Update voice vol/pitch filter from patch LFO
-			- Disables voice after release finished
+			- Update voice vol/pitch/filter from OSC envelopes
+			- Update voice vol/pitch filter from "global" LFO
+			- Disables/frees voice after release finished
 	- Mixes voices to output buffer (using CMixer)
-	- Handles transpose
+		- Handles pitch bend					[TODO - Smooth]
+		- Handles transpose					[TODO]
 	- Recieves and processes MIDI messages:
 		- MIDI note on/off
 		- MIDI control change
 			- Pitch bend and modulation
-			- Patch change
-			- Tweak knobs
+			- Patch change					[TODO]
+			- Tweak knobs (controllers)			[TODO - some]
 
 
 CPatch:
@@ -97,14 +109,11 @@ CPatch:
 		- pitch envelope
 		- filter envelope
 		- Q ("peak")
-
-	- LFO				"CLFO" class
-		- LFO waveform
-		- LFO freq
-		- LFO pitch envelope	(sets level from "sustain" level)  (vibrato)
-		- LFO volume envelope	(sets level)  (tremolo)
-		- LFO filter envelope	(sets level)
-		- LFO PWM envelope      (sets level)
+		- LFO "response" (effect global LFO has on osc)
+			- LFO pitch envelope	(vibrato)
+			- LFO volume envelope	(tremolo)
+			- LFO filter envelope	(wah wah)
+			- LFO PWM envelope
 
 	- Modulation			"CModulator" class
 		- Pitch bend range
@@ -115,6 +124,24 @@ CPatch:
 			- LFO freq (relative)
 
 
+
+CEnvelope:
+	- Delay (0 to 20 secs)
+	- Attack (0 to 20 secs)
+	- Peak (0 to 100%)
+	- Decay (0 to 20 secs)
+	- Sustain (0 to 100%)
+	- Release (0 to 20 secs)
+
+	- "LOGARITHMIC" Envelope sliders:				[TODO]
+		slider pos 0.0 to 1.0
+		time = sliderpos^2 * MAX_TIME
+		x = sqrt(time / MAX_TIME)
+		eg for MAX_TIME = 20000ms:
+			sliderpos 0.5 = 5000ms
+			sliderpos 0.25 = 1250ms
+			sliderpos 0.1 = 200ms
+			sliderpos 0.05 = 50ms
 
 
 Structure
@@ -148,6 +175,10 @@ GUI:
 			- pitch envelope
 			- filter envelope
 			- Q ("peak")
+			- LFO pitch envelope	(sets level from "sustain" level)  (vibrato)
+			- LFO volume envelope	(sets level)  (tremolo)
+			- LFO filter envelope	(sets level)
+			- LFO PWM envelope      (sets level)
 		- Patch OSC2 settings
 			- Waveform   
 			- Duty cycle (PWM)
@@ -156,13 +187,13 @@ GUI:
 			- pitch envelope
 			- filter envelope
 			- Q ("peak")
-		- Patch LFO settings (become current LFO settings when patch selected)
-			- LFO waveform
-			- LFO freq
 			- LFO pitch envelope	(sets level from "sustain" level)  (vibrato)
 			- LFO volume envelope	(sets level)  (tremolo)
 			- LFO filter envelope	(sets level)
 			- LFO PWM envelope      (sets level)
+		- Patch LFO settings (become current LFO settings when patch selected)
+			- LFO waveform
+			- LFO freq
 		- Patch Mod settings (become current mod settings when patch selected)
 			- Pitch bend range
 			- Modulation range
@@ -180,8 +211,10 @@ GUI:
 
 3. Patch Edit
 	- Incorporated into main screen?
-	- NOTE: "Save" copies the "working" patch data to the relevant patch 
-
+	- Edit "working" patch
+	- "Save" copy of the "working" patch data to the relevant patch 
+		- When user clicks "Save" button
+		- When user changes patch, ask user to save
 
 4. Sequencer
 	- 8 Tracks
@@ -240,7 +273,7 @@ Control Change (Bx cc nn)
 		- 7F = Poly mode
 
 	- nn = 0 to 40 to 7F
-Pitch bend (Ex)
+Pitch bend (Ex nn nn)
 
 Clock (F8)
 Seqence start (FA)
@@ -322,15 +355,15 @@ Packing of patch parameters (binary pack, ~75 bytes):
 	- pitch envelope  (4 bytes)
 	- filter envelope (4 bytes)
 	- Q ("peak")	00 - 7F
+	- LFO pitch envelope	(4 bytes)
+	- LFO volume envelope	(4 bytes)
+	- LFO filter envelope	(4 bytes)
+	- LFO PWM envelope      (4 bytes)
 - OSC2 params:
 	- Same as OSC1
 - Patch LFO settings (become current LFO settings when patch selected)
 	- LFO waveform 00 - ??
 	- LFO freq ??
-	- LFO pitch envelope	(4 bytes)
-	- LFO volume envelope	(4 bytes)
-	- LFO filter envelope	(4 bytes)
-	- LFO PWM envelope      (4 bytes)
 - Patch Mod settings (become current mod settings when patch selected)
 	- Pitch bend range 00 - 40 - 7F
 	- Modulation range 00 - 7F
@@ -400,12 +433,20 @@ X    Y    W     H    TYPE    		NAME		TEXT
 20   120  70    10   CT_LABEL		"VEnv1Label"	"Vol Env"
 20   140  70    10   CT_LABEL		"PEnv1Label"	"Pitch Env"
 20   160  70    10   CT_LABEL		"FEnv1Label"	"Filter Env"
+20   180  70    10   CT_LABEL		"LFOVEnvLabel"	"LFO VEnv"
+20   200  70    10   CT_LABEL		"LFOPEnvLabel"	"LFO PEnv"
+20   220  70    10   CT_LABEL		"LFOFEnvLabel"	"LFO FEnv"
+20   240  70    10   CT_LABEL		"LFOPWMEnvLabel" "LFO PWMEnv"
 100  55   60    17   CT_OPTIONLIST	"WF1Option"	""
 100  75   60    17   CT_SLIDER		"Duty1Slider"	""
 100  95   60    17   CT_SLIDER		"Detune1Slider"	""
 100  115  60    17   CT_ENVELOPE	"VEnv1Envelope" ""
 100  135  60    17   CT_ENVELOPE	"PEnv1Envelope" ""
 100  155  60    17   CT_ENVELOPE	"FEnv1Envelope" ""
+100  175  60    17   CT_ENVELOPE	"LFO1VolEnvelope"	""
+100  195  60    17   CT_ENVELOPE	"LFO1PitchEnvelope" ""
+100  215  60    17   CT_ENVELOPE	"LFO1FilterEnvelope" ""
+100  235  60    17   CT_ENVELOPE	"LFO1PWMEnvelope" ""
 
 170  40   50    10   CT_LABEL		"OSC2Label"	"OSC2"
 180  60   70    10   CT_LABEL           "WF2Label"      "Waveform"
@@ -414,26 +455,26 @@ X    Y    W     H    TYPE    		NAME		TEXT
 180  120  70    10   CT_LABEL		"VEnv2Label"	"Vol Env"
 180  140  70    10   CT_LABEL		"PEnv2Label"	"Pitch Env"
 180  160  70    10   CT_LABEL		"FEnv2Label"	"Filter Env"
+180  180  70    10   CT_LABEL		"LFOVEnvLabel"	"LFO VEnv"
+180  200  70    10   CT_LABEL		"LFOPEnvLabel"	"LFO PEnv"
+180  220  70    10   CT_LABEL		"LFOFEnvLabel"	"LFO FEnv"
+180  240  70    10   CT_LABEL		"LFOPWMEnvLabel" "LFO PWMEnv"
 260  55   60    17   CT_OPTIONLIST	"WF2Option"	""
 260  75   60    17   CT_SLIDER		"Duty2Slider"	""
 260  95   60    17   CT_SLIDER		"Detune2Slider"	""
 260  115  60    17   CT_ENVELOPE	"VEnv2Envelope" ""
 260  135  60    17   CT_ENVELOPE	"PEnv2Envelope" ""
 260  155  60    17   CT_ENVELOPE	"FEnv2Envelope" ""
+260  175  60    17   CT_ENVELOPE	"LFOVolEnvelope"	""
+260  195  60    17   CT_ENVELOPE	"LFOPitchEnvelope" ""
+260  215  60    17   CT_ENVELOPE	"LFOFilterEnvelope" ""
+260  235  60    17   CT_ENVELOPE	"LFOPWMEnvelope" ""
 
 330  40   50    10   CT_LABEL		"LFOLabel"	"LFO"
 340  60   70    10   CT_LABEL           "LFOWFLabel"    "Waveform"
 340  80   70    10   CT_LABEL		"LFOFreqLabel"	"Freq."
-340  100  70    10   CT_LABEL		"LFOVEnvLabel"	"Vol Env"
-340  120  70    10   CT_LABEL		"LFOPEnvLabel"	"Pitch Env"
-340  140  70    10   CT_LABEL		"LFOFEnvLabel"	"Filter Env"
-340  160  70    10   CT_LABEL		"LFOPWMEnvLabel"	"PWM Env"
 420  55   60    17   CT_OPTIONLIST	"LFOWFOption"	""
 420  75   60    17   CT_SLIDER		"LFOFreqSlider"	""
-420  95   60    17   CT_ENVELOPE	"LFOVolEnvelope"	""
-420  115  60    17   CT_ENVELOPE	"LFOPitchEnvelope" ""
-420  135  60    17   CT_ENVELOPE	"LFOFilterEnvelope" ""
-420  155  60    17   CT_ENVELOPE	"LFOPWMEnvelope" ""
 
 10   190  40    10   CT_LABEL		"MODLabel"	"MOD"
 20   210  70    10   CT_LABEL		"PB Range"	""
@@ -445,7 +486,8 @@ X    Y    W     H    TYPE    		NAME		TEXT
 
 
 
-Envelope Editor:
+Envelope Editor Popup:
+(Triggered by envelope buttons)
 
 +--------+---+------------+----+------+
 |       /:\  :            :    :      |  A: [          ] 200 ms
@@ -458,57 +500,190 @@ Envelope Editor:
 |/       :   :            :   \:      |
 +--------+---+------------+----+------+
 
+Current path envelope updated as you change values
 
-One pole LP filter
 
-Type : Simple 1 pole LP and HP filter
-References : Posted by scoofy[AT]inf[DOT]elte[DOT]hu
+
+Slider Popup:
+(Triggered by sliderbuttons)
+
++-------------------------------------+
+|                  :       |          |
+|                  :       |          |
++-------------------------------------+
+             Detune = +21
+
+(Shows old value as grey line)
+(Shows parameter = value, updated as you drag)
+(Current synth param updated as you move slider)
+
+
+[DONE] Random number generator (for noise):
+unsigned int PRNG()
+{
+    // our initial starting seed is 5323
+    static unsigned int nSeed = 5323;
+
+    // Take the current seed and generate a new value from it
+    // Due to our use of large constants and overflow, it would be
+    // very hard for someone to predict what the next number is
+    // going to be from the previous one.
+    nSeed = (8253729 * nSeed + 2396403); 
+
+    // Take the seed and return a value between 0 and 32767
+    return nSeed  % 32767;
+}
+
+Pink noise:
+	amplitude = 1 / f;
+	should be -3dB attenuation per octave
+	use 1-pole LPFilter to turn white noise to pink noise? (-6dB per octave)
+
+
+Filters:
+
+- Select between filters "Simple" (1-pole LP) and "Moog" (4-pole LP)
+
+Moog VCF
+
+Type : 24db resonant lowpass
+References : CSound source code, Stilson/Smith CCRMA paper.
 
 Notes : 
-Slope: 6dB/Oct
-
-Reference: www.dspguide.com
-
-Coefficient calculation:
-x = exp(-2.0*pi*freq/samplerate);
-a0 = 1.0-x;
-b1 = -x;
+Digital approximation of Moog VCF. Fairly easy to calculate coefficients, fairly easy to process algorithm, good sound.
 
 Code : 
+//Init
+cutoff = cutoff freq in Hz
+fs = sampling frequency //(e.g. 44100Hz)
+res = resonance [0 - 1] //(minimum - maximum)
 
-Process loop (lowpass):
-out = a0*in - b1*tmp;
-tmp = out;
+f = 2 * cutoff / fs; //[0 - 1]
+k = 3.6*f - 1.6*f*f -1; //(Empirical tuning)
+p = (k+1)*0.5;
+scale = e^((1-p)*1.386249;
+r = res*scale;
+y4 = output;
+
+y1=y2=y3=y4=oldx=oldy1=oldy2=oldy3=0;
+
+//Loop
+//--Inverted feed back for corner peaking
+x = input - r*y4;
+
+//Four cascaded onepole filters (bilinear transform)
+y1=x*p + oldx*p - k*y1;
+y2=y1*p+oldy1*p - k*y2;
+y3=y2*p+oldy2*p - k*y3;
+y4=y3*p+oldy3*p - k*y4;
+
+//Clipper band limited sigmoid
+y4 = y4 - (y4^3)/6;
+
+oldx = x;
+oldy1 = y1;
+oldy2 = y2;
+oldy3 = y3;
 
 
-/// Simple 1-pole LP filter class
-class CLPFilter
-{
-public:
-	CLPFilter(float sampleRate)
-		{
-		m_sampleRate = sampleRate;
-		m_prevValue = 0.0f;
-		}
 
-	void SetCutoffFreq(float freq)
-		{
-		float k = exp(-2.0 * PI * freq / m_sampleRate);
-		m_a = 1.0 - k;
-		m_b = -k;
-		}
+PHASE DISTORTION FUNCTION:
 
-	void Apply(float *buffer, int length)
-		{
-		for (int i = 0; i < length; i++)
-			{
-			float out = m_a * buffer[i] - m_b * m_prevValue;
-			m_prevValue = out;
-			buffer[i] = out;
-			}
-		}
+float dy1 = 0.5 / duty;			// slope before duty point
+float dy2 = 0.5 / (1.0 - duty);		// slope after duty point
+int L1 = waveformLength * duty;
+int halfWFL = 0.5 * waveformLength;
+for offsetIn < L1 : offsetOut = offsetIn * dy1;
+for offsetIn >= L1 :offsetOut = halfWFL + (offsetIn - L1) * dy2;
 
-private:
-	float m_prevValue;
-	float m_sampleRate;
-}
+Check: for duty = 0.5:
+dy1 = 1;
+dy2 = 1;
+for offsetIn = 0: offsetOut = 0 * dy1 = 0
+for offsetIn = halfWFL: offsetOut = halfWFL * dy1 = halfWFL, OR
+			offsetOut = halfWFL + (0) * dy2 = halfWFL
+for offsetIn = 0.25 * WFL: offsetOut = (0.25 * WFL) * dy1 = 0.25 * WFL
+
+Check: for duty = 0.25:
+dy1 = 2.0;
+dy2 = 0.5 / 0.75 = 0.666;
+for offsetIn = 0: offsetOut = 0 * dy1 = 0
+for offsetIn = halfWFL: offsetOut = halfWFL + (0.25 * WFL) * dy2 = 0.666 * WFL
+for offsetIn = 0.1 * WFL: offsetOut = 0.1 * WFL * dy1 = 0.2 * WFL
+for offsetIn = WFL: offsetOut = halfWFL + (WFL - WFL * 0.25) * 0.666 = halfWFL + (0.75 * WFL * 0.666) = WFL
+
+
+
+TODO ENGINE:
+===========
+
+- LP Filter and filter cutoff adjustment			[DONE]
+	- Switch between filters (Simple and Moog)
+	- Filtering oscillator output (filter envelopes)
+	- Filtering final output				[DONE]
+- Noise generator and selection/enabling
+	- Pink noise, 20 sec buffer (global)
+- Pulse width / phase distortion				[DONE]
+	- Adjust waveform sample lookup pos
+		- interpolating 0 -> width fraction -> 1.0
+- Pitch bend (0xEn) and Mod Wheel (CC 01)			[DONE]
+- Mono / Poly mode  (CC 7E and CC 7F)
+	- Mono mode
+	- "DUAL MONO" mode (use 2 adjacent patches? (4 voices))
+	- "Legato" mode  (portamento)
+	- Poly mode
+	- Split mode (2 patches over keyboard)
+- Velocity on/off
+- Omni ON/Off (MIDI settings) (CC 7C and 7D)
+- Sustain pedal (CC 64) (ignore?)
+
+
+TODO GUI:
+=========
+
+- Patch select page						[DONE]
+- Text input page						[DONE]
+- Slider popup control						[DONE]
+	- Shows value						[TODO]
+- System page (MIDI settings etc)				[TODO]
+
+
+
+
+PATCH SELECTOR PAGE [DONE]
+8 x 8 or 4 x 16:
++--------------+ +--------------+ +--------------+ +--------------+
+|              | |              | |              | |              |
++--------------+ +--------------+ +--------------+ +--------------+
++--------------+ +--------------+ +--------------+ +--------------+
+|              | |              | |              | |              |
++--------------+ +--------------+ +--------------+ +--------------+
++--------------+ +--------------+ +--------------+ +--------------+
+|              | |              | |              | |              |
++--------------+ +--------------+ +--------------+ +--------------+
++--------------+ +--------------+ +--------------+ +--------------+
+|              | |              | |              | |              |
++--------------+ +--------------+ +--------------+ +--------------+
+...
+
+
+
+TEXT INPUT PAGE [DONE]
+- Use text input bitmaps
+
+CONNECTORS:
+	- MIDI IN/OUT
+	- Line in
+	- Mic in (XLR)
+	- Audio out (L & R)
+
+KNOBS / SLIDERS / BUTTONS:
+	- "Control knob" - Rotary encoder for setting selected values
+		- Or touch strip / ribbon
+	- Previous / Next / Enter / Exit buttons
+	- MONO / POLY button
+	- ARPEGGIO ON/OFF
+	- Ribbon controller (?)
+	- D-Beam (proximity sensor)
+
+
