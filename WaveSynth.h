@@ -1,4 +1,4 @@
-/// Represents the wave synth engine
+/// A waveform-based synthesiser
 //- Manage Patches
 //	- Patch collection
 //	- Save / load patches
@@ -12,12 +12,6 @@
 //		- Disables voice after release finished
 //- Mixes voices to output buffer (using CMixer)
 //- Handles transpose
-//- Recieves and processes MIDI messages:
-//	- MIDI note on/off
-//	- MIDI control change
-//		- Pitch bend and modulation
-//		- Patch change
-//		- Tweak knobs
 #pragma once
 
 #include "Patch.h"

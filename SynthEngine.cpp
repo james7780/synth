@@ -105,6 +105,7 @@ static void SendPatchInfo(mqd_t mqGUI, int patchIndex)
 /// Process messages for the synth
 /// @param buffer			Message buffer
 /// @param length			Length of the message
+/// @param mqGUI			The mqueue desciptor for GUI messages
 static void ProcessMessage(char *buffer, int length, mqd_t mqGUI)
 {
 	if (length < 1)
@@ -116,6 +117,7 @@ static void ProcessMessage(char *buffer, int length, mqd_t mqGUI)
 		{
 		case 0x80 :			// Note On
 		case 0x90 :			// Note Off
+			// Forward to the wavesynth
 			waveSynth.ProcessMessage(buffer, length);
 			break;
 		case 0xB0 :			// Controller change
@@ -139,6 +141,11 @@ static void ProcessMessage(char *buffer, int length, mqd_t mqGUI)
 				}
 			break;
 		case 0xC0 :			// Patch change
+			// Forward to the wavesynth
+			waveSynth.ProcessMessage(buffer, length);
+			// Also tell GUI to update
+			SendPatchInfo(mqGUI, buffer[1]);
+			break;
 		case 0xE0 :			// Pitch bend
 			waveSynth.ProcessMessage(buffer, length);
 			break;
@@ -154,8 +161,12 @@ static void ProcessMessage(char *buffer, int length, mqd_t mqGUI)
 pthread_t midiInThread;
 
 /// MIDI device read thread (to prevent blocking on dev read)
+/// @param data			The GUI mqueue descriptor
 void *midiInThreadFunc(void *data)
 {
+	//mqd_t *p = (mqd_t *)data;
+	mqd_t mqGUI = *((mqd_t *)data);
+	
 	// state variables
 	unsigned char state = 0;
 	unsigned char channel = 0;
@@ -191,7 +202,7 @@ void *midiInThreadFunc(void *data)
 						note = c;
 						buffer[0] = 0x80 | channel;
 						buffer[1] = note;
-						ProcessMessage(buffer, 2, mqd_t(-1));
+						ProcessMessage(buffer, 2, mqGUI);
 						state = 0x80;   // continue "note off" running mode?
 						break;
 					case 0x90 :	// note on msg, need note
@@ -203,7 +214,7 @@ void *midiInThreadFunc(void *data)
 						buffer[0] = 0x90 | channel;
 						buffer[1] = note;
 						buffer[2] = vel;
-						ProcessMessage(buffer, 3, mqd_t(-1));
+						ProcessMessage(buffer, 3, mqGUI);
 						state = 0x90;		// continue in running "note on" state
 						break;
 					case 0xA0 :	// 
@@ -217,10 +228,16 @@ void *midiInThreadFunc(void *data)
 						buffer[0] = 0xB0 | channel;
 						buffer[1] = cc;
 						buffer[2] = value;
-						ProcessMessage(buffer, 3, mqd_t(-1));
+						ProcessMessage(buffer, 3, mqGUI);
+						// Also tell GUI to update according to the CC
+						PostMessage(mqGUI, buffer, 3);
 						state = 0xB0;		// continue in running "CC" state
 						break;
-					case 0xC0 :
+					case 0xC0 :	// patch change
+						//printf("Patch change: %d\n", c);
+						buffer[0] = 0xC0 | channel;
+						buffer[1] = c;
+						ProcessMessage(buffer, 2, mqGUI);
 						break;
 					case 0xD0 :
 						break;
@@ -231,7 +248,7 @@ void *midiInThreadFunc(void *data)
 						break;
 					case 0xE1 :		// Pitch bend 2nd byte
 						buffer[2] = c;
-						ProcessMessage(buffer, 3, mqd_t(-1));
+						ProcessMessage(buffer, 3, mqGUI);
 						state = 0xE0;   // continue in running PB state
 						break;
 					}	// end case
@@ -342,7 +359,8 @@ int main(int argc, char *argv[])
 	printf("Buffer period %.3f ms\n", bufferPeriodMS);
 
 	// Start up midi device input thread
-	if (-1 == pthread_create(&midiInThread, NULL, midiInThreadFunc, NULL))
+	//if (-1 == pthread_create(&midiInThread, NULL, midiInThreadFunc, NULL))
+	if (-1 == pthread_create(&midiInThread, NULL, midiInThreadFunc, &mqGUI))
 		printf("Error: could not create MIDI device in thread!\n");
 
 	bool done = false;

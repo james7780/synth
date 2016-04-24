@@ -55,7 +55,7 @@ int DoPatchSelect(SDL_Renderer *renderer, mqd_t mqEngine, mqd_t mqGUI)
 		char outBuffer[MSG_MAX_SIZE] = { 0xB0, 103, (char)i };
 		PostMessage(mqEngine, outBuffer, 3);
 
-		SDL_Delay(20);
+		SDL_Delay(10);
 		
 		// Check for data from the synthengine process
 		char buffer[MSG_MAX_SIZE];
@@ -87,8 +87,6 @@ int DoPatchSelect(SDL_Renderer *renderer, mqd_t mqEngine, mqd_t mqGUI)
 				}
 			}
 		}
-
-	
 	
 	// Setup the popup layout
 	int parentWidth, parentHeight;
@@ -431,6 +429,81 @@ static void UpdatePatchFromMainPage(CGUIManager &gm, CPatch &patch)
 	patch.m_LFODepth = ((CGUISlider *)control)->m_value;
 }
 
+/// Update the working GUI patch info from a CC message
+static void UpdatePatchFromCC(CPatch &patch, char cc, char value)
+{
+	// Mapping of CC numbers to patch parameters
+	// Osc 1 waveform		Knob 1		CC 14
+	// Osc 1 duty			Knob 2		CC 15
+	// Osc 1 detune			Knob 3		CC 16
+	// Osc 2 waveform		Knob 5		CC 17
+	// Osc 2 duty			Knob 6		CC 18
+	// Osc 2 detune			Knob 7		CC 19
+	// LFO waveform			Knob 4		CC 20
+	// LFO speed 			Knob 8		CC 21
+	// Envelope delay		Slider 1	CC 22
+	// Envelope attack		Slider 2	CC 23
+	// Envelope peak		Slider 3	CC 24
+	// Envelope decay		Slider 4	CC 25
+	// Envelope sustain		Slider 5	CC 26
+	// Envelope release		Slider 6	CC 27
+	// Cutoff freq			Slider 7	CC 74
+	// Resonance			Slider 8	CC 71
+
+	switch(cc)
+		{
+		case 14 :
+			patch.m_osc1.m_waveType = (WAVETYPE)(value / (128 / WT_MAX));
+			break;
+		case 15 :
+			patch.m_osc1.m_duty = UnpackValue(value, 0x7F);
+			break;
+		case 16 :
+			patch.m_osc1.m_detune = UnpackValue(value, 0x7F) * 2.0f - 1.0f;
+			break;
+		case 17 :
+			patch.m_osc2.m_waveType = (WAVETYPE)(value / (128 / WT_MAX));
+			break;
+		case 18 :
+			patch.m_osc2.m_duty = UnpackValue(value, 0x7F);
+			break;
+		case 19 :
+			patch.m_osc2.m_detune = UnpackValue(value, 0x7F) * 2.0f - 1.0f;
+			break;
+		case 20 :
+			patch.m_LFOWaveform = (WAVETYPE)(value / (128 / WT_MAX));
+			break;
+		case 21 :
+			patch.m_LFOFreq = UnpackValue(value, 0x7F) * LFO_MAX_FREQ;
+			break;
+		case 22 :	
+			// TODO : Which envelope?
+			//patch.m_delay = UnpackValue(buffer[0], 0x7F) * ENV_MAX_ATTACK;
+			//m_attack = UnpackValue(buffer[1], 0x7F) * ENV_MAX_ATTACK;
+			//m_peak = UnpackValue(buffer[2], 0x7F);
+			//m_decay = UnpackValue(buffer[3], 0x7F) * ENV_MAX_ATTACK;
+			//m_sustain = UnpackValue(buffer[4], 0x7F);
+			//m_release = UnpackValue(buffer[5], 0x7F) * ENV_MAX_ATTACK;
+
+			break;
+		case 23 :
+			break;
+		case 24 :
+			break;
+		case 25 :
+			break;
+		case 26 :
+			break;
+		case 27 :
+			break;
+		case 71 :		// Resonance
+			break;
+		case 74 :		// Cutoff
+			break;
+		}	// end switch
+			
+}
+
 /// Process messages recieved from the synth engine
 static void ProcessMessage(char *buffer, int length)
 {
@@ -443,10 +516,12 @@ static void ProcessMessage(char *buffer, int length)
 	char command = buffer[0];
 	switch (command & 0xF0)
 		{
+		printf("ProcessMessage(%X %X %X)\n", buffer[0], buffer[1], buffer[2]);
 		case 0xB0 :			// Controller change
 			{
 			//char cc = buffer[1];
-			// TODO
+			// Update the working patch info
+			UpdatePatchFromCC(workPatch, buffer[1], buffer[2]);
 			}
 			break;
 		case 0xC0 :			// Patch change

@@ -1,3 +1,5 @@
+/// A waveform-based synthesiser
+/// Manages patches and voices
 #include "WaveSynth.h"
 #include "Messages.h"
 #include <stdio.h>
@@ -363,24 +365,75 @@ void CWaveSynth::ProcessMessage(char *buffer, int length)
 		case 0xB0 :			// Controller change
 			{
 			char cc = buffer[1];
+			char value = buffer[2];
+printf("WaveSynth: CC %d\n", cc);
+	// Mapping of CC numbers to patch parameters
+	// Osc 1 waveform		Knob 1		CC 14
+	// Osc 1 duty			Knob 2		CC 15
+	// Osc 1 detune			Knob 3		CC 16
+	// Osc 2 waveform		Knob 5		CC 17
+	// Osc 2 duty			Knob 6		CC 18
+	// Osc 2 detune			Knob 7		CC 19
+	// LFO waveform			Knob 4		CC 20
+	// LFO speed 			Knob 8		CC 21
+	// Envelope delay		Slider 1	CC 22
+	// Envelope attack		Slider 2	CC 23
+	// Envelope peak		Slider 3	CC 24
+	// Envelope decay		Slider 4	CC 25
+	// Envelope sustain		Slider 5	CC 26
+	// Envelope release		Slider 6	CC 27
+	// Cutoff freq			Slider 7	CC 74
+	// Resonance			Slider 8	CC 71
 			if (1 == cc)			// MOD wheel
 				{
 				// LPFilter max = 2khz
-				float freq = 2000.0f + 2000.0f * ((float)buffer[2] / 0x7F); 
+				float freq = 2000.0f + 2000.0f * ((float)value / 0x7F); 
 				m_mixer.m_LPFilter.SetCutoffFreq(freq);
 				}
 			else if (74 == cc)		// Filter cutouff
 				{
-				// LPFilter max = 2khz
-				float freq = 2000.0f * ((float)buffer[2] / 0x7F); 
+				// LPFilter max = 4khz
+				float freq = 500 + 3500.0f * ((float)value / 0x7F); 
 				m_mixer.m_LPFilter.SetCutoffFreq(freq);
 				}
 			else if (91 == cc)		// Reverb Send
 				{
 				// LPFilter max = 2khz
-				float sendValue = ((float)buffer[2] / 0x7F); 
+				float sendValue = ((float)value / 0x7F); 
 				printf("WaveSynth: reverb level = %.2f\n", sendValue);
 				m_mixer.m_reverb.m_mixLevel = sendValue;	
+				}
+			else if (14 == cc)
+				{
+				m_workPatch.m_osc1.m_waveType = (WAVETYPE)(value / (128 / WT_MAX));
+				}
+			else if (15 == cc)
+				{
+				m_workPatch.m_osc1.m_duty = UnpackValue(value, 0x7F);
+				}
+			else if (16 == cc)
+				{
+				m_workPatch.m_osc1.m_detune = UnpackValue(value, 0x7F) * 2.0f - 1.0f;
+				}
+			else if (17 == cc)
+				{
+				m_workPatch.m_osc2.m_waveType = (WAVETYPE)(value / (128 / WT_MAX));
+				}
+			else if (18 == cc)
+				{
+				m_workPatch.m_osc2.m_duty = UnpackValue(value, 0x7F);
+				}
+			else if (19 == cc)
+				{
+				m_workPatch.m_osc2.m_detune = UnpackValue(value, 0x7F) * 2.0f - 1.0f;
+				}
+			else if (20 == cc)
+				{
+				m_workPatch.m_LFOWaveform = (WAVETYPE)(value / (128 / WT_MAX));
+				}
+			else if (21 == cc)
+				{
+				m_workPatch.m_LFOFreq = UnpackValue(value, 0x7F) * LFO_MAX_FREQ;
 				}
 			}
 			break;
