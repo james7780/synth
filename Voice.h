@@ -42,6 +42,8 @@ public:
 	float m_elapsedTime;
 	// This voice has released (note off)
 	bool m_released;
+	// The envelope level when we released the note
+	float m_releasedLevel;
 	
 	// The base note being played by this voice
 	char m_note;

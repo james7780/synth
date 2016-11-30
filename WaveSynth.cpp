@@ -232,85 +232,87 @@ void CWaveSynth::SavePatches()
 			fprintf(pf, "osc1.wavetype=%d\n", osc1->m_waveType);
 			fprintf(pf, "osc1.duty=%.2f\n", osc1->m_duty);
 			fprintf(pf, "osc1.detune=%.2f\n", osc1->m_detune);
-			CEnvelope &env = osc1->m_envelope[ET_VOLUME];
-			fprintf(pf, "osc1.volenvDL=%d\n", (int)env.m_delay);
-			fprintf(pf, "osc1.volenvA=%d\n", (int)env.m_attack);
-			fprintf(pf, "osc1.volenvP=%d\n", (int)env.m_peak);
-			fprintf(pf, "osc1.volenvD=%d\n", (int)env.m_decay);
-			fprintf(pf, "osc1.volenvS=%.2f\n", env.m_sustain);
-			fprintf(pf, "osc1.volenvR=%d\n", (int)env.m_release);
-			env = osc1->m_envelope[ET_PITCH];
-			fprintf(pf, "osc1.pitchenvDL=%d\n", (int)env.m_delay);
-			fprintf(pf, "osc1.pitchenvA=%d\n", (int)env.m_attack);
-			fprintf(pf, "osc1.pitchenvP=%d\n", (int)env.m_peak);
-			fprintf(pf, "osc1.pitchenvD=%d\n", (int)env.m_decay);
-			fprintf(pf, "osc1.pitchenvS=%.2f\n", env.m_sustain);
-			fprintf(pf, "osc1.pitchenvR=%d\n", (int)env.m_release);
-			env = osc1->m_envelope[ET_FILTER];
-			fprintf(pf, "osc1.filterenvDL=%d\n", (int)env.m_delay);
-			fprintf(pf, "osc1.filterenvA=%d\n", (int)env.m_attack);
-			fprintf(pf, "osc1.filterenvP=%d\n", (int)env.m_peak);
-			fprintf(pf, "osc1.filterenvD=%d\n", (int)env.m_decay);
-			fprintf(pf, "osc1.filterenvS=%.2f\n", env.m_sustain);
-			fprintf(pf, "osc1.filterenvR=%d\n", (int)env.m_release);
-			env = osc1->m_LFOEnvelope[ET_VOLUME];
-			fprintf(pf, "osc1.LFOVolenvDL=%d\n", (int)env.m_delay);
-			fprintf(pf, "osc1.LFOVolenvA=%d\n", (int)env.m_attack);
-			fprintf(pf, "osc1.LFOVolenvP=%d\n", (int)env.m_peak);
-			fprintf(pf, "osc1.LFOVolenvD=%d\n", (int)env.m_decay);
-			fprintf(pf, "osc1.LFOVolenvS=%.2f\n", env.m_sustain);
-			fprintf(pf, "osc1.LFOVolenvR=%d\n", (int)env.m_release);
-			env = osc1->m_LFOEnvelope[ET_PITCH];
-			fprintf(pf, "osc1.LFOPitchenvDL=%d\n", (int)env.m_delay);
-			fprintf(pf, "osc1.LFOPitchenvA=%d\n", (int)env.m_attack);
-			fprintf(pf, "osc1.LFOPitchenvP=%d\n", (int)env.m_peak);
-			fprintf(pf, "osc1.LFOPitchenvD=%d\n", (int)env.m_decay);
-			fprintf(pf, "osc1.LFOPitchenvS=%.2f\n", env.m_sustain);
-			fprintf(pf, "osc1.LFOPitchenvR=%d\n", (int)env.m_release);
+			CEnvelope *env = &osc1->m_envelope[ET_VOLUME];
+			fprintf(pf, "osc1.volenvDL=%d\n", (int)env->m_delay);
+			fprintf(pf, "osc1.volenvA=%d\n", (int)env->m_attack);
+			fprintf(pf, "osc1.volenvP=%.2f\n", env->m_peak);
+			fprintf(pf, "osc1.volenvD=%d\n", (int)env->m_decay);
+			fprintf(pf, "osc1.volenvS=%.2f\n", env->m_sustain);
+			fprintf(pf, "osc1.volenvR=%d\n", (int)env->m_release);
+			env = &osc1->m_envelope[ET_PITCH];
+			fprintf(pf, "osc1.pitchenvDL=%d\n", (int)env->m_delay);
+			fprintf(pf, "osc1.pitchenvA=%d\n", (int)env->m_attack);
+			fprintf(pf, "osc1.pitchenvP=%.2f\n", env->m_peak);
+			fprintf(pf, "osc1.pitchenvD=%d\n", (int)env->m_decay);
+			fprintf(pf, "osc1.pitchenvS=%.2f\n", env->m_sustain);
+			fprintf(pf, "osc1.pitchenvR=%d\n", (int)env->m_release);
+			env = &osc1->m_envelope[ET_FILTER];
+			fprintf(pf, "osc1.filterenvDL=%d\n", (int)env->m_delay);
+			fprintf(pf, "osc1.filterenvA=%d\n", (int)env->m_attack);
+			fprintf(pf, "osc1.filterenvP=%.2f\n", env->m_peak);
+			fprintf(pf, "osc1.filterenvD=%d\n", (int)env->m_decay);
+			fprintf(pf, "osc1.filterenvS=%.2f\n", env->m_sustain);
+			fprintf(pf, "osc1.filterenvR=%d\n", (int)env->m_release);
+			env = &osc1->m_LFOEnvelope[ET_VOLUME];
+			fprintf(pf, "osc1.LFOVolenvDL=%d\n", (int)env->m_delay);
+			fprintf(pf, "osc1.LFOVolenvA=%d\n", (int)env->m_attack);
+			fprintf(pf, "osc1.LFOVolenvP=%.2f\n", env->m_peak);
+			fprintf(pf, "osc1.LFOVolenvD=%d\n", (int)env->m_decay);
+			fprintf(pf, "osc1.LFOVolenvS=%.2f\n", env->m_sustain);
+			fprintf(pf, "osc1.LFOVolenvR=%d\n", (int)env->m_release);
+			env = &osc1->m_LFOEnvelope[ET_PITCH];
+			fprintf(pf, "osc1.LFOPitchenvDL=%d\n", (int)env->m_delay);
+			fprintf(pf, "osc1.LFOPitchenvA=%d\n", (int)env->m_attack);
+			fprintf(pf, "osc1.LFOPitchenvP=%.2f\n", env->m_peak);
+			fprintf(pf, "osc1.LFOPitchenvD=%d\n", (int)env->m_decay);
+			fprintf(pf, "osc1.LFOPitchenvS=%.2f\n", env->m_sustain);
+			fprintf(pf, "osc1.LFOPitchenvR=%d\n", (int)env->m_release);
 
 			COscillator *osc2 = &patch->m_osc2;
 			fprintf(pf, "osc2.wavetype=%d\n", osc2->m_waveType);
 			fprintf(pf, "osc2.duty=%.2f\n", osc2->m_duty);
 			fprintf(pf, "osc2.detune=%.2f\n", osc2->m_detune);
-			env = osc2->m_envelope[ET_VOLUME];
-			fprintf(pf, "osc2.volenvDL=%d\n", (int)env.m_delay);
-			fprintf(pf, "osc2.volenvA=%d\n", (int)env.m_attack);
-			fprintf(pf, "osc2.volenvP=%d\n", (int)env.m_peak);
-			fprintf(pf, "osc2.volenvD=%d\n", (int)env.m_decay);
-			fprintf(pf, "osc2.volenvS=%.2f\n", env.m_sustain);
-			fprintf(pf, "osc2.volenvR=%d\n", (int)env.m_release);
-			env = osc2->m_envelope[ET_PITCH];
-			fprintf(pf, "osc2.pitchenvDL=%d\n", (int)env.m_delay);
-			fprintf(pf, "osc2.pitchenvA=%d\n", (int)env.m_attack);
-			fprintf(pf, "osc2.pitchenvP=%d\n", (int)env.m_peak);
-			fprintf(pf, "osc2.pitchenvD=%d\n", (int)env.m_decay);
-			fprintf(pf, "osc2.pitchenvS=%.2f\n", env.m_sustain);
-			fprintf(pf, "osc2.pitchenvR=%d\n", (int)env.m_release);
-			env = osc2->m_envelope[ET_FILTER];
-			fprintf(pf, "osc2.filterenvDL=%d\n", (int)env.m_delay);
-			fprintf(pf, "osc2.filterenvA=%d\n", (int)env.m_attack);
-			fprintf(pf, "osc2.filterenvP=%d\n", (int)env.m_peak);
-			fprintf(pf, "osc2.filterenvD=%d\n", (int)env.m_decay);
-			fprintf(pf, "osc2.filterenvS=%.2f\n", env.m_sustain);
-			fprintf(pf, "osc2.filterenvR=%d\n", (int)env.m_release);
-			env = osc2->m_LFOEnvelope[ET_VOLUME];
-			fprintf(pf, "osc2.LFOVolenvDL=%d\n", (int)env.m_delay);
-			fprintf(pf, "osc2.LFOVolenvA=%d\n", (int)env.m_attack);
-			fprintf(pf, "osc2.LFOVolenvP=%d\n", (int)env.m_peak);
-			fprintf(pf, "osc2.LFOVolenvD=%d\n", (int)env.m_decay);
-			fprintf(pf, "osc2.LFOVolenvS=%.2f\n", env.m_sustain);
-			fprintf(pf, "osc2.LFOVolenvR=%d\n", (int)env.m_release);
-			env = osc2->m_LFOEnvelope[ET_PITCH];
-			fprintf(pf, "osc2.LFOPitchenvDL=%d\n", (int)env.m_delay);
-			fprintf(pf, "osc2.LFOPitchenvA=%d\n", (int)env.m_attack);
-			fprintf(pf, "osc2.LFOPitchenvP=%d\n", (int)env.m_peak);
-			fprintf(pf, "osc2.LFOPitchenvD=%d\n", (int)env.m_decay);
-			fprintf(pf, "osc2.LFOPitchenvS=%.2f\n", env.m_sustain);
-			fprintf(pf, "osc2.LFOPitchenvR=%d\n", (int)env.m_release);
-				
+			env = &osc2->m_envelope[ET_VOLUME];
+			fprintf(pf, "osc2.volenvDL=%d\n", (int)env->m_delay);
+			fprintf(pf, "osc2.volenvA=%d\n", (int)env->m_attack);
+			fprintf(pf, "osc2.volenvP=%.2f\n", env->m_peak);
+			fprintf(pf, "osc2.volenvD=%d\n", (int)env->m_decay);
+			fprintf(pf, "osc2.volenvS=%.2f\n", env->m_sustain);
+			fprintf(pf, "osc2.volenvR=%d\n", (int)env->m_release);
+			env = &osc2->m_envelope[ET_PITCH];
+			fprintf(pf, "osc2.pitchenvDL=%d\n", (int)env->m_delay);
+			fprintf(pf, "osc2.pitchenvA=%d\n", (int)env->m_attack);
+			fprintf(pf, "osc2.pitchenvP=%.2f\n", env->m_peak);
+			fprintf(pf, "osc2.pitchenvD=%d\n", (int)env->m_decay);
+			fprintf(pf, "osc2.pitchenvS=%.2f\n", env->m_sustain);
+			fprintf(pf, "osc2.pitchenvR=%d\n", (int)env->m_release);
+			env = &osc2->m_envelope[ET_FILTER];
+			fprintf(pf, "osc2.filterenvDL=%d\n", (int)env->m_delay);
+			fprintf(pf, "osc2.filterenvA=%d\n", (int)env->m_attack);
+			fprintf(pf, "osc2.filterenvP=%.2f\n", env->m_peak);
+			fprintf(pf, "osc2.filterenvD=%d\n", (int)env->m_decay);
+			fprintf(pf, "osc2.filterenvS=%.2f\n", env->m_sustain);
+			fprintf(pf, "osc2.filterenvR=%d\n", (int)env->m_release);
+			env = &osc2->m_LFOEnvelope[ET_VOLUME];
+			fprintf(pf, "osc2.LFOVolenvDL=%d\n", (int)env->m_delay);
+			fprintf(pf, "osc2.LFOVolenvA=%d\n", (int)env->m_attack);
+			fprintf(pf, "osc2.LFOVolenvP=%.2f\n", env->m_peak);
+			fprintf(pf, "osc2.LFOVolenvD=%d\n", (int)env->m_decay);
+			fprintf(pf, "osc2.LFOVolenvS=%.2f\n", env->m_sustain);
+			fprintf(pf, "osc2.LFOVolenvR=%d\n", (int)env->m_release);
+			env = &osc2->m_LFOEnvelope[ET_PITCH];
+			fprintf(pf, "osc2.LFOPitchenvDL=%d\n", (int)env->m_delay);
+			fprintf(pf, "osc2.LFOPitchenvA=%d\n", (int)env->m_attack);
+			fprintf(pf, "osc2.LFOPitchenvP=%.2f\n", env->m_peak);
+			fprintf(pf, "osc2.LFOPitchenvD=%d\n", (int)env->m_decay);
+			fprintf(pf, "osc2.LFOPitchenvS=%.2f\n", env->m_sustain);
+			fprintf(pf, "osc2.LFOPitchenvR=%d\n", (int)env->m_release);	
 			}
-		
 		fclose(pf);
+		}
+	else
+		{
+		printf("Error: could not open patches.dat for write!\n");
 		}
 }
 
@@ -332,6 +334,9 @@ void CWaveSynth::StoreWorkPatch(int patchNum)
 		{
 		m_patches[patchNum].CopyFrom(m_workPatch);
 		printf("WaveSynth: Stored work to patch #%d\n", patchNum);
+		// DEBUG
+		//m_patches[patchNum].Dump();
+		//m_workPatch.Dump();
 		}
 }
 

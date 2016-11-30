@@ -24,6 +24,8 @@ public:
 	int PackParams(char *buffer);
 	/// Unpack the patch param data from a message and update the patch
 	void UnpackParams(char *buffer, char address, char size);
+	
+	void Dump();
 
 public:
 	COscillator m_osc1;				// OSC1 settings

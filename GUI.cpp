@@ -1,5 +1,9 @@
 /// GUI class for SDL projects
 
+// GUI TODO:
+// 1. Colours in a "theme" file
+
+
 //#include <SDL2/SDL.h>
 #include "GUI.h"
 #include "fontengine.h"
@@ -647,6 +651,8 @@ void CGUIEnvelope::Draw(const CGUIDrawContext &drawContext)
 	int h = m_rect.h;
 	int yp = y0 - (int)(m_adsr[2] * h);
 	int ys = y0 - (int)(m_adsr[4] * h);
+	SDL_Colour colour = { 255, 255, 255, 0 };
+	drawContext.SetDrawColour(colour); 
 	SDL_RenderDrawLine(drawContext.m_renderer, x1, y0, x2, yp);
 	SDL_RenderDrawLine(drawContext.m_renderer, x2, yp, x3, ys);
 	SDL_RenderDrawLine(drawContext.m_renderer, x3, ys, x4, ys);

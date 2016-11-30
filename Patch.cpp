@@ -99,6 +99,9 @@ int CPatch::PackParams(char *buffer)
 /// @param size			Size of the packed data
 void CPatch::UnpackParams(char *buffer, char address, char size)
 {
+	// DEBUG
+	//printf("UnpackParams: addr = %d, size = %d\n", address, size);
+	
 	char *dataEnd = buffer + size;
 	char *p = buffer; 
 	if (p < dataEnd && PADDR_NAME == address)
@@ -152,4 +155,29 @@ void CPatch::UnpackParams(char *buffer, char address, char size)
 		}
 }
 
+// DEBUG - Dump patch data to output
+void CPatch::Dump()
+{
+	printf("Patch dump:\n");
+	printf("  Name: %s\n", m_name);
+	printf("  MixLevel: %.2f\n", m_mixLevel);
+	printf("  Osc1.waveType: %d\n", m_osc1.m_waveType);
+	printf("  Osc1.duty:     %.2f\n", m_osc1.m_duty);
+	printf("  Osc1.detune:   %.2f\n", m_osc1.m_detune);
+	printf("  Osc1.VE.delay:   %.2f\n", m_osc1.m_envelope[ET_VOLUME].m_delay);
+	printf("  Osc1.VE.attack:  %.2f\n", m_osc1.m_envelope[ET_VOLUME].m_attack);
+	printf("  Osc1.VE.peak:    %.2f\n", m_osc1.m_envelope[ET_VOLUME].m_peak);
+	printf("  Osc1.VE.decay:   %.2f\n", m_osc1.m_envelope[ET_VOLUME].m_decay);
+	printf("  Osc1.VE.sustain: %.2f\n", m_osc1.m_envelope[ET_VOLUME].m_sustain);
+	printf("  Osc1.VE.release: %.2f\n", m_osc1.m_envelope[ET_VOLUME].m_release);
+	// osc2?
 
+	//p[0] = (char)m_LFOWaveform;
+	//p[1] = PackScaledValue(m_LFOFreq / LFO_MAX_FREQ, 0x7F);
+	//p[2] = PackScaledValue(m_LFODepth, 0x7F);
+	// gap here
+	// MOD data
+	//p = buffer + PADDR_MOD1;
+	//int modLen = m_modulator[0].PackParams(p);
+	//m_modulator[1].PackParams(p + modLen);
+}

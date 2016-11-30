@@ -21,7 +21,7 @@ public:
 	~CEnvelope();
 
 	void Set(float delay, float a, float p, float d, float s, float r);
-	float GetLevel(float time, bool released) const;
+	float GetLevel(float time, bool released, float releasedLevel) const;
 
 	float m_delay;				// in ms
 	float m_attack;				// in ms

@@ -43,7 +43,7 @@ void audioBufferCallback(void* userdata, Uint8* stream, int len) {
 
 static void PostMessage(mqd_t mq, char *buffer, int length)
 {
-	printf("Posting message...\n");
+	//printf("Posting message...\n");
 	mq_send(mq, buffer, length, 0);
 }
 
@@ -92,12 +92,19 @@ static void SendPatchInfo(mqd_t mqGUI, int patchIndex)
 {
 	if (patchIndex < NUM_PATCHES)
 		{
-		CPatch &patch = waveSynth.m_patches[patchIndex];
+		CPatch *patch = &waveSynth.m_patches[patchIndex];
+		// DEBUG
+		//patch->Dump();
+		
 		char outBuffer[MSG_MAX_SIZE] = {
 			0xF0, 0x7D, 0x01, 0x01, 0x12, 0x00, 0x00, PADDR_END, 0x00, 0xF7
 			};
 		char *p = outBuffer + 8; 
-		int packedBytes = patch.PackParams(p);
+		int packedBytes = patch->PackParams(p);
+		// DEBUG
+		//printf("Sysex data: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
+		//		p[20], p[21], p[22], p[23], p[24], p[25], p[26], p[27], p[28], p[29]);
+		
 		PostMessage(mqGUI, outBuffer, packedBytes + 10);
 		}
 }
@@ -127,13 +134,34 @@ static void ProcessMessage(char *buffer, int length, mqd_t mqGUI)
 				waveSynth.StoreWorkPatch(waveSynth.m_currentPatchIndex);
 				printf("Saving patches...\n");
 				waveSynth.SavePatches();
+				
+				// DEBUG - Confirm back to GUI
+				//SendPatchInfo(mqGUI, waveSynth.m_currentPatchIndex);
 				}
-			if (103 == buffer[1])
+			else if (103 == buffer[1])
 				{
 				// Requesting patch info
 				int patchIndex = buffer[2];
 				printf("Patch info %d requested\n", patchIndex);
 				SendPatchInfo(mqGUI, patchIndex);
+				}
+			else if (104 == buffer[1])
+				{
+				// Requesting patch names
+				int startPatch = buffer[2];
+				int numPatchNames = buffer[3];
+				printf("%d patch names requested\n", numPatchNames);
+				for (int i = startPatch; i < startPatch + numPatchNames && i < NUM_PATCHES; i++)
+					{
+					CPatch &patch = waveSynth.m_patches[i];
+					char outBuffer[MSG_MAX_SIZE] = {
+						0xF0, 0x7D, 0x01, 0x01, 0x12, 0x00, 0x00, PADDR_MIXVOL, 0x00, 0xF7
+						};
+					char *p = outBuffer + 8; 
+					patch.PackParams(p);		// TODO - pack only first n bytes
+					//PostMessage(mqGUI, outBuffer, packedBytes + 10);
+					PostMessage(mqGUI, outBuffer, PADDR_MIXVOL + 10);	// send shortened packet
+					}
 				}
 			else
 				{
@@ -155,6 +183,16 @@ static void ProcessMessage(char *buffer, int length, mqd_t mqGUI)
 				ProcessPatchSysex(buffer, length, mqGUI);
 			break;
 		}	// end switch
+}
+// Clear out the specified message queue
+static void FlushMessageQueue(mqd_t mq)
+{
+	char mqbuffer[MSG_MAX_SIZE];
+	ssize_t bytes_read = 1;
+	while (bytes_read > 0)
+		{
+		bytes_read = mq_receive(mq, mqbuffer, MSG_MAX_SIZE, NULL);
+		}
 }
 
 #define MIDIDEVICE "/dev/midi1"
@@ -277,6 +315,8 @@ int main(int argc, char *argv[])
 	memset(&killaction, 0, sizeof(struct sigaction));
 	killaction.sa_handler = terminate;
 	sigaction(SIGTERM, &killaction, NULL);
+
+	printf("SynthEngine V1.0 - Copyright James Higgs 2015/2016\n");
 	
 	// IPC message queue stuff
 	char mqbuffer[MSG_MAX_SIZE];
@@ -289,10 +329,15 @@ int main(int argc, char *argv[])
 	mqd_t mqEngine = mq_open(ENGINE_QUEUE_NAME, O_CREAT | O_RDONLY | O_NONBLOCK, 0644, &attr);
 	assert(mqEngine != -1);
 	
+	// Flush the incoming message queue
+	printf("SE: Flushing incoming message queue\n");
+	FlushMessageQueue(mqEngine);
+	
 	// Create message queue for sending messages to the gui
 	mqd_t mqGUI = mq_open(GUI_QUEUE_NAME, O_CREAT | O_WRONLY | O_NONBLOCK, 0644, &attr);
 	assert(mqGUI != -1);
 
+	printf("SE: Initialising audio output\n");
 
  	//SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_TIMER);
  	SDL_Init(SDL_INIT_AUDIO | SDL_INIT_TIMER);
@@ -315,14 +360,14 @@ int main(int argc, char *argv[])
 //		}
 	if (SDL_OpenAudio(&audioSpec, NULL) < 0)
 		{
-		printf("Failed to open audio: %s\n", SDL_GetError());
+		printf("Failed to open wave audio: %s\n", SDL_GetError());
 		return 1;
 		}
-	printf("Audio opened successfully:\n");
-	printf("   Freq = %d\n", audioSpec.freq);
-	printf("   Samples = %d.\n", audioSpec.samples);
-	printf("   Channels = %d.\n", audioSpec.channels);
-	printf("   Format = %X\n", audioSpec.format);
+	printf("SE: Audio opened successfully:\n");
+	printf("    Freq = %d\n", audioSpec.freq);
+	printf("    Samples = %d.\n", audioSpec.samples);
+	printf("    Channels = %d.\n", audioSpec.channels);
+	printf("    Format = %X\n", audioSpec.format);
 
 /*
 	CPatch *patch = &waveSynth.patches[0];
@@ -356,7 +401,7 @@ int main(int argc, char *argv[])
 
 	const float bufferPeriodMS = (float)((1000 * audioSpec.samples) / audioSpec.freq);
 	//float bufferPeriodMS = 100.0f;
-	printf("Buffer period %.3f ms\n", bufferPeriodMS);
+	printf("SE: Buffer period %.3f ms\n", bufferPeriodMS);
 
 	// Start up midi device input thread
 	//if (-1 == pthread_create(&midiInThread, NULL, midiInThreadFunc, NULL))

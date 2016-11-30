@@ -44,14 +44,19 @@ void CEnvelope::Set(float delay, float a, float p, float d, float s, float r)
 
 /// Get the envelope level for the time since note on or note off
 /// @param time				Time is ms since note on or note off
-/// @param m_released		true if note has been m_released (time since note off)
-float CEnvelope::GetLevel(float time, bool m_released) const
+/// @param released			true if note has been m_released (time since note off)
+/// @param releasedLevel	The level at which note was released
+float CEnvelope::GetLevel(float time, bool released, float releasedLevel) const
 {
 	float level = m_sustain;
-	if (m_released)
+	if (released)
 		{
 		if (time < m_release)
-			level = (1.0f - time / m_release) * m_sustain;
+			{
+			// min release time to avoid clicking on release
+			float r = m_release > 20.0f ? m_release : 20.0f;
+			level = (1.0f - time / r) * releasedLevel; //m_sustain;
+			}
 		else
 			level = 0.0f;
 		}
@@ -59,6 +64,7 @@ float CEnvelope::GetLevel(float time, bool m_released) const
 		{
 		if (time < m_delay)
 			{
+			// delay
 			level = 0.0f;
 			}
 		else
@@ -66,10 +72,12 @@ float CEnvelope::GetLevel(float time, bool m_released) const
 			time -= m_delay;
 			if (time < m_delay + m_attack)
 				{
+				// attack
 				level = m_peak * (time / m_attack);
 				}
 			else if (time < m_attack + m_decay)
 				{
+				// decay
 				level = m_peak - ((time - m_attack) / m_decay) * (m_peak - m_sustain); 
 				}
 			}
@@ -81,7 +89,7 @@ float CEnvelope::GetLevel(float time, bool m_released) const
 
 void CEnvelope::CopyFrom(const CEnvelope &rhs)
 {
-	m_delay= rhs.m_delay;
+	m_delay = rhs.m_delay;
 	m_attack = rhs.m_attack;
 	m_peak = rhs.m_peak;
 	m_decay = rhs.m_decay;

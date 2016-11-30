@@ -17,8 +17,10 @@
 
 //#define FREQ 220 /* the frequency we want */
 
-#define WIDTH	480
-#define HEIGHT	272
+//#define WIDTH	480
+//#define HEIGHT	272
+#define WIDTH	800
+#define HEIGHT	480
 
 // For rendering text
 FontEngine *bigFont = NULL;
@@ -43,32 +45,47 @@ static void PostMessage(mqd_t mq, char *buffer, int length)
 	mq_send(mq, buffer, length, 0);
 }
 
+// Clear out the specified message queue
+static void FlushMessageQueue(mqd_t mq)
+{
+	char mqbuffer[MSG_MAX_SIZE];
+	ssize_t bytes_read = 1;
+	while (bytes_read > 0)
+		{
+		bytes_read = mq_receive(mq, mqbuffer, MSG_MAX_SIZE, NULL);
+		}
+}
+
 /// Patch Select screen
 int DoPatchSelect(SDL_Renderer *renderer, mqd_t mqEngine, mqd_t mqGUI)
 {
+	// Remove any lingering messages
+	FlushMessageQueue(mqGUI);
+	FlushMessageQueue(mqEngine);
+
+	// Send "Request patch names" message to the synth engine
+	// Use "undefined" CC message 104 - Data is patch start index and number of patch names wanted
+	char outBuffer[MSG_MAX_SIZE] = { 0xB0, 104, 0, 32 };
+	PostMessage(mqEngine, outBuffer, 4);
+
+	// Give synthengine some time to formulate and queue a response
+	SDL_Delay(100);
+
+	// Check for data from the synthengine process
 	std::string names[32];
-	
+	char buffer[MSG_MAX_SIZE];
 	for (int i = 0; i < 32; i++)
 		{
-		// Send "Request patch data" message to the synth engine
-		// Use "undefined" CC message 103
-		char outBuffer[MSG_MAX_SIZE] = { 0xB0, 103, (char)i };
-		PostMessage(mqEngine, outBuffer, 3);
-
-		SDL_Delay(10);
-		
-		// Check for data from the synthengine process
-		char buffer[MSG_MAX_SIZE];
 		ssize_t bytes_read = mq_receive(mqGUI, buffer, MSG_MAX_SIZE, NULL);
 		if (bytes_read > 0)
 			{
 			buffer[bytes_read] = 0;
 			//printf("msg received: %s\n", buffer);
-			// All messages are MIDI messages
+			// All messages are MIDI messages (sysex)
 			char command = buffer[0];
 			if (0xF0 == command)
 				{
-				// Sysex - Synth engine is sending patch data
+				// Sysex - Synth engine is sending (shortened) patch data
 				if (0x7D == buffer[1])
 					{
 					char sysexCmd = buffer[4];
@@ -87,7 +104,7 @@ int DoPatchSelect(SDL_Renderer *renderer, mqd_t mqEngine, mqd_t mqGUI)
 				}
 			}
 		}
-	
+
 	// Setup the popup layout
 	int parentWidth, parentHeight;
 	SDL_RenderGetLogicalSize(renderer, &parentWidth, &parentHeight);
@@ -99,9 +116,6 @@ int DoPatchSelect(SDL_Renderer *renderer, mqd_t mqEngine, mqd_t mqGUI)
 	gm.m_drawContext.SetForeColour(255, 255, 255, 0);
 	gm.m_drawContext.SetBackColour(0, 96, 0, 255);
 
-	// Ask the synth engine for the patch names
-	//RequestPatchNames(mqEngine);
-	
 	// Add the controls to the layout
 	const int COLUMNS = 4;
 	const int ROWS = 8;
@@ -174,72 +188,87 @@ bool reverbOn = true;
 /// Set up the main synth GUI screen
 static int SetupMainPage(CGUIManager &gm)
 {
+	const int CH = 24;				// char height
+	const int CW = 12;				// char width
+	const int MARGIN = CW;
+	const int INDENT = CW;
+	const int LABELW = 10 * CW;
+	const int CNTRLW = 10 * CW;
+	const int LCOL1X = MARGIN + INDENT;
+	const int CCOL1X = LCOL1X + LABELW;
+	const int COLWIDTH = (WIDTH - (MARGIN * 2)) / 3;
+	const int LCOL2X = MARGIN + INDENT + COLWIDTH;
+	const int CCOL2X = LCOL2X + LABELW;
+	const int LCOL3X = MARGIN + INDENT + (2 * COLWIDTH);
+	const int CCOL3X = LCOL3X + LABELW;
+	const int ROW1Y = MARGIN + 2 * CH;
+	const int RDY = CH + (CH/3);	// row spacing
+	
 	// Patch name edit
-	gm.AddControl(10, 10, 330, 20, CT_EDIT,    "PatchName", "_patchname");
-	gm.AddControl(350, 10, 40, 20, CT_BUTTON,  "SavePatch", "Save");
+	gm.AddControl(MARGIN, MARGIN, LCOL2X, CH, CT_EDIT,    "PatchName", "_patchname");
+	gm.AddControl(MARGIN + LCOL2X + MARGIN, MARGIN, 5 * CW, CH, CT_BUTTON,  "SavePatch", "Save");
 
 	// OSC 1 parameters
-	gm.AddControl(10, 40, 50, 10,   CT_LABEL,      "OSC1Label", "OSC1");
-	gm.AddControl(20, 60, 70, 10,   CT_LABEL,      "WF1Label", "Waveform");
-	gm.AddControl(20, 80, 70, 10,   CT_LABEL,      "Duty1Label", "Duty %");
-	gm.AddControl(20, 100, 70, 10,  CT_LABEL,      "Detune1Label", "Detune");
-	gm.AddControl(20, 120, 70, 10,  CT_LABEL,      "VEnv1Label", "Vol Env");
-	gm.AddControl(20, 140, 70, 10,  CT_LABEL,      "PEnv1Label", "Pitch Env");
-	gm.AddControl(20, 160, 70, 10,  CT_LABEL,      "FEnv1Label", "Filter Env");
-	gm.AddControl(20, 180, 70, 10,  CT_LABEL,      "LFOVEnv1Label", "LFO V Env");
-	gm.AddControl(20, 200, 70, 10,  CT_LABEL,      "LFOPEnv1Label", "LFO P Env");
-	gm.AddControl(20, 220, 70, 10,  CT_LABEL,      "LFOFEnv1Label", "LFO F Env");
+	gm.AddControl(LCOL1X - MARGIN, ROW1Y, LABELW, CH, CT_LABEL,      "OSC1Label", "OSC1");
+	gm.AddControl(LCOL1X, ROW1Y + RDY, LABELW, CH,    CT_LABEL,      "WF1Label", "Waveform");
+	gm.AddControl(LCOL1X, ROW1Y + RDY*2, LABELW, CH,  CT_LABEL,      "Duty1Label", "Duty %");
+	gm.AddControl(LCOL1X, ROW1Y + RDY*3, LABELW, CH,  CT_LABEL,      "Detune1Label", "Detune");
+	gm.AddControl(LCOL1X, ROW1Y + RDY*4, LABELW, CH,  CT_LABEL,      "VEnv1Label", "Vol Env");
+	gm.AddControl(LCOL1X, ROW1Y + RDY*5, LABELW, CH,  CT_LABEL,      "PEnv1Label", "Pitch Env");
+	gm.AddControl(LCOL1X, ROW1Y + RDY*6, LABELW, CH,  CT_LABEL,      "FEnv1Label", "Filter Env");
+	gm.AddControl(LCOL1X, ROW1Y + RDY*7, LABELW, CH,  CT_LABEL,      "LFOVEnv1Label", "LFO V Env");
+	gm.AddControl(LCOL1X, ROW1Y + RDY*8, LABELW, CH,  CT_LABEL,      "LFOPEnv1Label", "LFO P Env");
+	gm.AddControl(LCOL1X, ROW1Y + RDY*9, LABELW, CH,  CT_LABEL,      "LFOFEnv1Label", "LFO F Env");
 
-	gm.AddControl(100, 58, 60, 17,  CT_OPTIONLIST, "WF1Option", NULL);
-	gm.AddControl(100, 78, 60, 17,  CT_SLIDER,     "Duty1Slider", NULL);
-	gm.AddControl(100, 98, 60, 17,  CT_SLIDER,     "Detune1Slider", NULL);
-	gm.AddControl(100, 118, 60, 17, CT_ENVELOPE,   "VEnv1Envelope", NULL);
-	gm.AddControl(100, 138, 60, 17, CT_ENVELOPE,   "PEnv1Envelope", NULL);
-	gm.AddControl(100, 158, 60, 17, CT_ENVELOPE,   "FEnv1Envelope", NULL);
-	gm.AddControl(100, 178, 60, 17, CT_ENVELOPE,   "LFOVEnv1Envelope", NULL);
-	gm.AddControl(100, 198, 60, 17, CT_ENVELOPE,   "LFOPEnv1Envelope", NULL);
-	gm.AddControl(100, 218, 60, 17, CT_ENVELOPE,   "LFOFEnv1Envelope", NULL);
-
+	gm.AddControl(CCOL1X, ROW1Y + RDY, CNTRLW, CH,   CT_OPTIONLIST, "WF1Option", NULL);
+	gm.AddControl(CCOL1X, ROW1Y + RDY*2, CNTRLW, CH, CT_SLIDER,     "Duty1Slider", NULL);
+	gm.AddControl(CCOL1X, ROW1Y + RDY*3, CNTRLW, CH, CT_SLIDER,     "Detune1Slider", NULL);
+	gm.AddControl(CCOL1X, ROW1Y + RDY*4, CNTRLW, CH, CT_ENVELOPE,   "VEnv1Envelope", NULL);
+	gm.AddControl(CCOL1X, ROW1Y + RDY*5, CNTRLW, CH, CT_ENVELOPE,   "PEnv1Envelope", NULL);
+	gm.AddControl(CCOL1X, ROW1Y + RDY*6, CNTRLW, CH, CT_ENVELOPE,   "FEnv1Envelope", NULL);
+	gm.AddControl(CCOL1X, ROW1Y + RDY*7, CNTRLW, CH, CT_ENVELOPE,   "LFOVEnv1Envelope", NULL);
+	gm.AddControl(CCOL1X, ROW1Y + RDY*8, CNTRLW, CH, CT_ENVELOPE,   "LFOPEnv1Envelope", NULL);
+	gm.AddControl(CCOL1X, ROW1Y + RDY*9, CNTRLW, CH, CT_ENVELOPE,   "LFOFEnv1Envelope", NULL);
 
 	// OSC 2 parameters
-	gm.AddControl(170, 40, 50, 10,   CT_LABEL,      "OSC2Label", "OSC1");
-	gm.AddControl(180, 60, 70, 10,   CT_LABEL,      "WF2Label", "Waveform");
-	gm.AddControl(180, 80, 70, 10,   CT_LABEL,      "Duty2Label", "Duty %");
-	gm.AddControl(180, 100, 70, 10,  CT_LABEL,      "Detune2Label", "Detune");
-	gm.AddControl(180, 120, 70, 10,  CT_LABEL,      "VEnv2Label", "Vol Env");
-	gm.AddControl(180, 140, 70, 10,  CT_LABEL,      "PEnv2Label", "Pitch Env");
-	gm.AddControl(180, 160, 70, 10,  CT_LABEL,      "FEnv2Label", "Filter Env");
-	gm.AddControl(180, 180, 70, 10,  CT_LABEL,      "LFOVEnv2Label", "LFO V Env");
-	gm.AddControl(180, 200, 70, 10,  CT_LABEL,      "LFOPEnv2Label", "LFO P Env");
-	gm.AddControl(180, 220, 70, 10,  CT_LABEL,      "LFOFEnv2Label", "LFO F Env");
+	gm.AddControl(LCOL2X - MARGIN, ROW1Y, LABELW, CH,   CT_LABEL,      "OSC2Label", "OSC2");
+	gm.AddControl(LCOL2X, ROW1Y + RDY, LABELW, CH,   CT_LABEL,      "WF2Label", "Waveform");
+	gm.AddControl(LCOL2X, ROW1Y + RDY*2, LABELW, CH,   CT_LABEL,      "Duty2Label", "Duty %");
+	gm.AddControl(LCOL2X, ROW1Y + RDY*3, LABELW, CH,  CT_LABEL,      "Detune2Label", "Detune");
+	gm.AddControl(LCOL2X, ROW1Y + RDY*4, LABELW, CH,  CT_LABEL,      "VEnv2Label", "Vol Env");
+	gm.AddControl(LCOL2X, ROW1Y + RDY*5, LABELW, CH,  CT_LABEL,      "PEnv2Label", "Pitch Env");
+	gm.AddControl(LCOL2X, ROW1Y + RDY*6, LABELW, CH,  CT_LABEL,      "FEnv2Label", "Filter Env");
+	gm.AddControl(LCOL2X, ROW1Y + RDY*7, LABELW, CH,  CT_LABEL,      "LFOVEnv2Label", "LFO V Env");
+	gm.AddControl(LCOL2X, ROW1Y + RDY*8, LABELW, CH,  CT_LABEL,      "LFOPEnv2Label", "LFO P Env");
+	gm.AddControl(LCOL2X, ROW1Y + RDY*9, LABELW, CH,  CT_LABEL,      "LFOFEnv2Label", "LFO F Env");
 
-	gm.AddControl(260, 58, 60, 17,  CT_OPTIONLIST, "WF2Option", NULL);
-	gm.AddControl(260, 78, 60, 17,  CT_SLIDER,     "Duty2Slider", NULL);
-	gm.AddControl(260, 98, 60, 17,  CT_SLIDER,     "Detune2Slider", NULL);
-	gm.AddControl(260, 118, 60, 17, CT_ENVELOPE,   "VEnv2Envelope", NULL);
-	gm.AddControl(260, 138, 60, 17, CT_ENVELOPE,   "PEnv2Envelope", NULL);
-	gm.AddControl(260, 158, 60, 17, CT_ENVELOPE,   "FEnv2Envelope", NULL);
-	gm.AddControl(260, 178, 60, 17, CT_ENVELOPE,   "LFOVEnv2Envelope", NULL);
-	gm.AddControl(260, 198, 60, 17, CT_ENVELOPE,   "LFOPEnv2Envelope", NULL);
-	gm.AddControl(260, 218, 60, 17, CT_ENVELOPE,   "LFOFEnv2Envelope", NULL);
+	gm.AddControl(CCOL2X, ROW1Y + RDY, CNTRLW, CH,  CT_OPTIONLIST, "WF2Option", NULL);
+	gm.AddControl(CCOL2X, ROW1Y + RDY*2, CNTRLW, CH,  CT_SLIDER,     "Duty2Slider", NULL);
+	gm.AddControl(CCOL2X, ROW1Y + RDY*3, CNTRLW, CH,  CT_SLIDER,     "Detune2Slider", NULL);
+	gm.AddControl(CCOL2X, ROW1Y + RDY*4, CNTRLW, CH, CT_ENVELOPE,   "VEnv2Envelope", NULL);
+	gm.AddControl(CCOL2X, ROW1Y + RDY*5, CNTRLW, CH, CT_ENVELOPE,   "PEnv2Envelope", NULL);
+	gm.AddControl(CCOL2X, ROW1Y + RDY*6, CNTRLW, CH, CT_ENVELOPE,   "FEnv2Envelope", NULL);
+	gm.AddControl(CCOL2X, ROW1Y + RDY*7, CNTRLW, CH, CT_ENVELOPE,   "LFOVEnv2Envelope", NULL);
+	gm.AddControl(CCOL2X, ROW1Y + RDY*8, CNTRLW, CH, CT_ENVELOPE,   "LFOPEnv2Envelope", NULL);
+	gm.AddControl(CCOL2X, ROW1Y + RDY*9, CNTRLW, CH, CT_ENVELOPE,   "LFOFEnv2Envelope", NULL);
 
 	// LFO parameters
-	gm.AddControl(330, 40, 50, 10,  CT_LABEL,      "LFOLabel", "LFO");
-	gm.AddControl(340, 60, 70, 10,  CT_LABEL,      "LFOWFLabel", "Waveform");
-	gm.AddControl(340, 80, 70, 10,  CT_LABEL,      "LFOFreqLabel", "Freq.");
-	gm.AddControl(340, 100, 70, 10, CT_LABEL,      "LFODepthLabel", "Depth");
+	gm.AddControl(LCOL3X - MARGIN, ROW1Y, LABELW, CH,  CT_LABEL,      "LFOLabel", "LFO");
+	gm.AddControl(LCOL3X, ROW1Y + RDY, LABELW, CH,  CT_LABEL,      "LFOWFLabel", "Waveform");
+	gm.AddControl(LCOL3X, ROW1Y + RDY*2, LABELW, CH,  CT_LABEL,      "LFOFreqLabel", "Freq.");
+	gm.AddControl(LCOL3X, ROW1Y + RDY*3, LABELW, CH, CT_LABEL,      "LFODepthLabel", "Depth");
 
-	gm.AddControl(420, 58, 60, 17,  CT_OPTIONLIST, "LFOWFOption", NULL);
-	gm.AddControl(420, 78, 60, 17,  CT_SLIDER,     "LFOFreqSlider", NULL);
-	gm.AddControl(420, 98, 60, 17,  CT_SLIDER,     "LFODepthSlider", NULL);
+	gm.AddControl(CCOL3X, ROW1Y + RDY, CNTRLW, CH,  CT_OPTIONLIST, "LFOWFOption", NULL);
+	gm.AddControl(CCOL3X, ROW1Y + RDY*2, CNTRLW, CH,  CT_SLIDER,     "LFOFreqSlider", NULL);
+	gm.AddControl(CCOL3X, ROW1Y + RDY*3, CNTRLW, CH,  CT_SLIDER,     "LFODepthSlider", NULL);
 
 	// Reverb parameters
-	gm.AddControl(340, 140, 50, 10, CT_LABEL,      "RvbDepthLabel", "Rev Depth");
-	gm.AddControl(420, 138, 60, 17, CT_SLIDER,     "RvbDepth", NULL);
+	gm.AddControl(LCOL3X, ROW1Y + RDY*4, LABELW, CH, CT_LABEL,      "RvbDepthLabel", "Rev Depth");
+	gm.AddControl(CCOL3X, ROW1Y + RDY*4, CNTRLW, CH, CT_SLIDER,     "RvbDepth", NULL);
 
 	// Filter parameters
-	gm.AddControl(340, 180, 50, 10, CT_LABEL,      "FilterCutoffLabel", "Filt Cutoff");
-	gm.AddControl(420, 178, 60, 17, CT_SLIDER,     "FilterCutoff", NULL);
+	gm.AddControl(LCOL3X, ROW1Y + RDY*5, LABELW, CH, CT_LABEL,      "FilterCutoffLabel", "Filt Cutoff");
+	gm.AddControl(CCOL3X, ROW1Y + RDY*5, CNTRLW, CH, CT_SLIDER,     "FilterCutoff", NULL);
 
 /*
 
@@ -252,7 +281,7 @@ static int SetupMainPage(CGUIManager &gm)
 100  245  60    17   CT_SLIDER		"ModRangeSlider"	""
 */
 
-	gm.AddControl(10, 250, 120, 20, CT_BUTTON,  "SelectPatch", "Select Patch");
+	gm.AddControl(MARGIN, HEIGHT - MARGIN - RDY, 160, CH, CT_BUTTON,  "SelectPatch", "Select Patch");
 	
 	CGUIOptionList *wf1OptList = (CGUIOptionList *)gm.GetControl("WF1Option");
 	CGUIOptionList *wf2OptList = (CGUIOptionList *)gm.GetControl("WF2Option");
@@ -548,9 +577,14 @@ static void ProcessMessage(char *buffer, int length)
 					if (0x12 == sysexCmd)				// "DT1" - recieve patch data
 						{
 						// read and convert the data
-						char *p = buffer + 8; 
+						char *p = buffer + 8;
+						// DEBUG
+						//printf("Sysex data: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\n",
+						//        p[20], p[21], p[22], p[23], p[24], p[25], p[26], p[27], p[28], p[29]);
+
 						workPatch.UnpackParams(p, paramAddr, sysexSize);
-						printf("Recieved patch '%s' data.\n", workPatch.GetName()); 
+						printf("Recieved patch '%s' data.\n", workPatch.GetName());
+						//workPatch.Dump();
 						}
 					}
 				}
@@ -562,6 +596,7 @@ static void ProcessMessage(char *buffer, int length)
 /// Request current (working) patch data from the synth engine
 static void RequestPatchData(mqd_t mq)
 {
+	printf("SG: Requesting patch data\n"); 
 	// create MIDI sysex RQ1 message to request the patch data
 	char buffer[] = { 0xF0, 0x7D, 0x01, 0x01, 0x11, 0x00, 0x00, PADDR_END, 0x00, 0xF7 } ;
 	PostMessage(mq, buffer, 10);
@@ -585,12 +620,20 @@ int main(int argc, char *argv[])
 	//assert(mqGUI != (mqd_t)-1);
 	if (mqEngine == (mqd_t)-1)
 		return -1;
+		
+	// Flush the incoming message queue
+	printf("SG: Flushing incoming message queue\n");
+	ssize_t bytes_read = 1;
+	while (bytes_read > 0)
+		{
+		bytes_read = mq_receive(mqGUI, mqbuffer, MSG_MAX_SIZE, NULL);
+		}
 
 
  	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
 
-	//SDL_Surface *screen = SDL_SetVideoMode(WIDTH, HEIGHT, 0, 0);
 	SDL_Window *window = SDL_CreateWindow("SynthGUI", 100, 100, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+	//SDL_Window *window = SDL_CreateWindow("SynthGUI", 0, 0, WIDTH, HEIGHT, SDL_WINDOW_FULLSCREEN);
 	if (!window)
 		printf("SDL_CreateWindow failed.\n");
 		
@@ -601,7 +644,8 @@ int main(int argc, char *argv[])
 	SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
 	bigFont = new FontEngine(renderer, "font_16x32.bmp", 16, 32);
-	smallFont = new FontEngine(renderer, "font_8x16.bmp", 8, 16);
+	//smallFont = new FontEngine(renderer, "font_8x16.bmp", 8, 16);
+	smallFont = new FontEngine(renderer, "font_12x24.bmp", 12, 24);
 
 	// Create the GUI control manager and set up our layout
 	int guiWidth, guiHeight;
@@ -632,13 +676,20 @@ int main(int argc, char *argv[])
 					done = true;
 					break;
 				case SDL_KEYDOWN :
-					// Trigger note from keyboard
-					mqbuffer[0] = 0x80;
-					mqbuffer[1] = (char)event.key.keysym.sym;
-					mqbuffer[2] = 0x7F;
-					mqbuffer[4] = 0;
-					printf("Posting NoteOn message...\n");
-					PostMessage(mqEngine, mqbuffer, 4);
+					if (SDLK_END == event.key.keysym.sym)
+						{
+						done = true;	
+						}
+					else
+						{
+						// Trigger note from keyboard
+						mqbuffer[0] = 0x80;
+						mqbuffer[1] = (char)event.key.keysym.sym;
+						mqbuffer[2] = 0x7F;
+						mqbuffer[4] = 0;
+						printf("Posting NoteOn message...\n");
+						PostMessage(mqEngine, mqbuffer, 4);
+						}
 					break;
 				case SDL_KEYUP :
 					// Note up
@@ -696,6 +747,8 @@ int main(int argc, char *argv[])
 							// Use "undefined" CC message 102
 							char outBuffer[MSG_MAX_SIZE] = { 0xB0, 102, 1 };
 							PostMessage(mqEngine, outBuffer, 3);
+							// Give synthengine some time to formulate and queue a response
+							SDL_Delay(50);
 							gm.m_controlChanged = false;
 							}
 						else if (0 == strcmp(control->m_name, "FilterCutoff"))
@@ -716,8 +769,11 @@ int main(int argc, char *argv[])
 							mqbuffer[2] = 0;
 							printf("Posting Patch %d Select message...\n", selectedPatch);
 							PostMessage(mqEngine, mqbuffer, 3);
+							// Give synthengine some time to formulate and queue a response
+							SDL_Delay(50);
 							// Ask the synth engine for current patch info
-							RequestPatchData(mqEngine);
+							// (Not neccessary - synth engine sends selected patch data anyway)
+							//RequestPatchData(mqEngine);
 							// Avoid sending patch data to the engine before we get it back!
 							gm.m_controlChanged = false;
 							}
@@ -753,7 +809,7 @@ int main(int argc, char *argv[])
 			}
 			
 		// Check for data from the synthengine process
-		ssize_t bytes_read = mq_receive(mqGUI, mqbuffer, MSG_MAX_SIZE, NULL);
+		bytes_read = mq_receive(mqGUI, mqbuffer, MSG_MAX_SIZE, NULL);
 		if (bytes_read > 0)
 			{
 			mqbuffer[bytes_read] = 0;

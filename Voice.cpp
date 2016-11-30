@@ -13,6 +13,7 @@ CVoice::CVoice()
 		m_volume(0.75f),
 		m_elapsedTime(0.0f),
 		m_released(false), 
+		m_releasedLevel(0.0f),
 		m_note(0)
 {
 }
@@ -45,6 +46,7 @@ void CVoice::NoteOn(const COscillator *osc, char note, float v)
 	m_volume = v;
 	m_elapsedTime = 0.0f;
 	m_released = false;
+	m_releasedLevel = 0.0f;
 	m_note = note;
 	//m_wavePos = 0;					// enables this voice
 	m_wavePos = rand() % 16;
@@ -58,6 +60,10 @@ void CVoice::NoteOff()
 	// Set this voice to "released" mode (if not already)
 	if (!m_released)
 		{
+		// Get current env level just before released
+		m_releasedLevel = GetEnvelopeLevel(ET_VOLUME);
+		//printf("NoteOff: released level = %f\n", m_releasedLevel);
+		// now release
 		m_elapsedTime = 0.0f;
 		m_released = true;
 		}
@@ -92,8 +98,9 @@ void CVoice::Update(float millis)
 /// Get current volume/pitch/filter envelop level for this voice
 float CVoice::GetEnvelopeLevel(ENVTYPE which)
 {
+	// TODO : Store released  level for all env types for this voice
 	if (m_osc)
-		return m_osc->m_envelope[which].GetLevel(m_elapsedTime, m_released);
+		return m_osc->m_envelope[which].GetLevel(m_elapsedTime, m_released, m_releasedLevel);
 	else
 		return 0.0f;
 }
@@ -102,7 +109,7 @@ float CVoice::GetEnvelopeLevel(ENVTYPE which)
 float CVoice::GetLFOEnvelopeLevel(ENVTYPE which)
 {
 	if (m_osc)
-		return m_osc->m_LFOEnvelope[which].GetLevel(m_elapsedTime, m_released);
+		return m_osc->m_LFOEnvelope[which].GetLevel(m_elapsedTime, m_released, m_releasedLevel);
 	else
 		return 0.0f;
 }
