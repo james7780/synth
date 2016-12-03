@@ -302,15 +302,25 @@ void CGUIButton::Draw(const CGUIDrawContext &drawContext)
 
 /// CGUISlider - Slider control
 
-CGUISlider::CGUISlider(int x, int y, int width, int height, const char *name, float minVal, float maxVal)
+CGUISlider::CGUISlider(int x, int y, int width, int height, const char *name, float minVal, float maxVal, bool logScale)
 	:	CGUIControl(x, y, width, height, CT_SLIDER, name, NULL),
 		m_value(0.5f),
 		m_minVal(0.0f),
-		m_maxVal(1.0f)
+		m_maxVal(1.0f),
+        m_logScale(logScale)
 {
-
 }
 
+/// Set up the slider for linear or log operation
+/// Use logScale = 0 for linear operation (default)
+void CGUISlider::Init(float value, float minVal, float maxVal, bool logScale)
+{
+    m_value = value;
+    m_minVal = minVal;
+    m_maxVal = maxVal;
+    m_logScale = logScale;
+}
+    
 /// Popup slider editor
 int CGUISlider::EditSlider(const CGUIDrawContext &drawContext)
 {
@@ -344,12 +354,11 @@ int CGUISlider::EditSlider(const CGUIDrawContext &drawContext)
 	int x1 = x0 + MARGIN;
 	int y1 = y0 + MARGIN;
 	CGUISlider *slider = gmPopup.AddSlider(x1, y1, SLIDERWIDTH, SLIDERHEIGHT,  "popupSlider");
-	slider->m_value = this->m_value;
-	slider->m_minVal = this->m_minVal;
-	slider->m_maxVal = this->m_maxVal;
+	slider->Init(this->m_value, this->m_minVal, this->m_maxVal, this->m_logScale);
 
 	// Calc x pos of "original value" line
-	int originalX = x1 + (int)(SLIDERWIDTH * ((m_value - m_minVal) / (m_maxVal - m_minVal)));
+	//int originalX = x1 + (int)(SLIDERWIDTH * ((m_value - m_minVal) / (m_maxVal - m_minVal)));
+	int originalX = x1 + (SLIDERWIDTH * GetPosition()) / 100;
 
 	// create label
 	char labelText[32];
@@ -416,14 +425,16 @@ int CGUISlider::EditSlider(const CGUIDrawContext &drawContext)
 	return 0;
 }
 
+/// @param[in] x        Mouse x relative to the slider left edge
 int CGUISlider::OnClick(const CGUIDrawContext &drawContext, int x, int y)
 {
 	// Show popup BIG SLIDER window, unless we are already 
 	// in BIG SLIDER window
 	if (0 == strcmp(m_name, "popupSlider"))
 		{
-		float k = (float)x / m_rect.w;
-		m_value = m_minVal + k * (m_maxVal - m_minVal);
+		//float k = (float)x / m_rect.w;
+		//m_value = m_minVal + k * (m_maxVal - m_minVal);
+        m_value = GetValue((x * 100) / m_rect.w);               // GetValue() wants range 0 to 100
 		return 0;
 		}
 		
@@ -431,10 +442,13 @@ int CGUISlider::OnClick(const CGUIDrawContext &drawContext, int x, int y)
 	return retval;
 }
 
+/// Handle mouse drag in slider
+/// @paran[in] x        x offset relative to left edge of the slider
 int CGUISlider::OnSwipe(int x, int y, int dx, int dy)
 {
-	float k = (float)x / m_rect.w;
-	m_value = m_minVal + k * (m_maxVal - m_minVal);
+	//float k = (float)x / m_rect.w;
+	//m_value = m_minVal + k * (m_maxVal - m_minVal);
+    m_value = GetValue((x * 100) / m_rect.w);               // GetValue() wants range 0 to 100
 	return 0;
 }
 
@@ -442,8 +456,10 @@ void CGUISlider::Draw(const CGUIDrawContext &drawContext)
 {
 	DrawBGFill(drawContext);
 	DrawFrame(drawContext);
-	float k = (m_value - m_minVal) / (m_maxVal - m_minVal);
-	int x = m_rect.x + (int)(m_rect.w * k);
+	//float k = (m_value - m_minVal) / (m_maxVal - m_minVal);
+	//int x = m_rect.x + (int)(m_rect.w * k);
+    int pos = GetPosition();        // from 0 to 100
+    int x = m_rect.x + (pos * m_rect.w) / 100;
 	SDL_Colour colour = { 255, 255, 255, 0 };
 	drawContext.SetDrawColour(colour); 
 	DrawLine(drawContext, x, m_rect.y, x, m_rect.y + m_rect.h - 1);
@@ -451,7 +467,56 @@ void CGUISlider::Draw(const CGUIDrawContext &drawContext)
 	DrawLine(drawContext, x + 1, m_rect.y + 2, x + 1, m_rect.y + m_rect.h - 3);
 }
 
+/// Get the value of the slider at the current position
+/// @param[in] pos         Slider position (0 to 100)
+/// @return                Slider value
+float CGUISlider::GetValue(int pos)
+{
+  // position must be between 0 and 100
+  pos = max(pos, 0);
+  pos = min(pos, 100);
 
+  // The result should be between m_minVal an m_maxVal
+  float retval = 0.0f;
+  if (m_logScale)
+    {
+    float minv = log(m_minVal);
+    float maxv = log(m_maxVal);
+
+    // calculate adjustment factor
+    float k = (maxv - minv) / 100;
+    retval = exp(minv + k * pos);
+    }
+  else
+    {
+	float k = (float)pos / 100;
+	retval = m_minVal + k * (m_maxVal - m_minVal);        
+    }
+    
+  return retval;
+}
+
+/// Get the position correspondingt o the current internal m_value
+/// @return Slider position (0 to 100) at the current value
+int CGUISlider::GetPosition()
+{
+  int pos = 0;
+  if (m_logScale)
+    {
+    float minv = log(m_minVal);
+    float maxv = log(m_maxVal);
+    // calculate adjustment factor
+    float k = (maxv - minv) / 100;
+    pos = (int)((log(m_value) - minv) / k);    // + minp;  (minp = 0)
+    }
+  else
+    {
+    float k = (m_value - m_minVal) / (m_maxVal - m_minVal);
+    pos = (int)(k * 100);
+    }
+    
+  return pos;
+}
 
 /// CGUIEnvelope - Envelope control
 
@@ -497,30 +562,18 @@ int CGUIEnvelope::EditADSR(const CGUIDrawContext &drawContext)
 	int y1 = y0 + POPUPHEIGHT - (MARGIN * 4) - (CH * 4);
 	int x1 = x0 + MARGIN;
 	CGUISlider *sliderDL = gmPopup.AddSlider(x1, y1, CW, CH,  "DelaySlider");
-	sliderDL->m_value = m_adsr[0];
-	sliderDL->m_minVal = 0.0f;
-	sliderDL->m_maxVal = 4000.0f;
+	sliderDL->Init(m_adsr[0], 0.0f, 4000.0f, true);
 	CGUISlider *sliderA = gmPopup.AddSlider(x1 + (MARGIN + CW), y1, CW, CH,  "AttackSlider");
-	sliderA->m_value = m_adsr[1];
-	sliderA->m_minVal = 0.0f;
-	sliderA->m_maxVal = 4000.0f;
+	sliderA->Init(m_adsr[1], 0.0f, 4000.0f, true);
 	CGUISlider *sliderD = gmPopup.AddSlider(x1 + 2*(MARGIN + CW), y1, CW, CH, "DecaySlider");
-	sliderD->m_value = m_adsr[3];
-	sliderD->m_minVal = 0.0f;
-	sliderD->m_maxVal = 4000.0f;
+	sliderD->Init(m_adsr[3], 0.0f, 4000.0f, true);
 	CGUISlider *sliderR = gmPopup.AddSlider(x1 + 3*(MARGIN + CW), y1, CW, CH, "ReleaseSlider");
-	sliderR->m_value = m_adsr[5];
-	sliderR->m_minVal = 0.0f;
-	sliderR->m_maxVal = 4000.0f;
+	sliderR->Init(m_adsr[5], 0.0f, 4000.0f, true);
 	y1 = y0 + POPUPHEIGHT - (MARGIN * 2) - (CH * 2);
 	CGUISlider *sliderP = gmPopup.AddSlider(x1, y1, CW, CH, "PeakSlider");
-	sliderP->m_value = m_adsr[2];
-	sliderP->m_minVal = 0.0f;
-	sliderP->m_maxVal = 1.0f;
+	sliderP->Init(m_adsr[2], 0.0f, 1.0f, false);
 	CGUISlider *sliderS = gmPopup.AddSlider(x1 + MARGIN + CW, y1, CW, CH, "SustainSlider");
-	sliderS->m_value = m_adsr[4];
-	sliderS->m_minVal = 0.0f;
-	sliderS->m_maxVal = 1.0f;
+	sliderS->Init(m_adsr[4], 0.0f, 1.0f, false);
 	
 	y1 = y0 + POPUPHEIGHT - (MARGIN * 3) - (CH * 3);
 	CGUILabel *labelDL = gmPopup.AddLabel(x1, y1, CW, CH, "LabelDL", "D = ");
@@ -779,7 +832,7 @@ CGUIControl *CGUIManager::AddControl(int x, int y, int w, int h, CONTROLTYPE typ
 			newControl = new CGUIButton(x, y, w, h, name, text);
 			break;
 		case CT_SLIDER :
-			newControl = new CGUISlider(x, y, w, h, name, 0.0f, 1.0f);
+			newControl = new CGUISlider(x, y, w, h, name, 0.0f, 1.0f, 0.0f);
 			break;
 		case CT_ENVELOPE :
 			newControl = new CGUIEnvelope(x, y, w, h, name, text);
@@ -819,7 +872,7 @@ CGUIButton *CGUIManager::AddButton(int x, int y, int w, int h, const char *name,
 /// Shortcut - add slider control
 CGUISlider *CGUIManager::AddSlider(int x, int y, int w, int h, const char *name)
 {
-	CGUISlider *newControl = new CGUISlider(x, y, w, h, name, 0.0f, 1.0f);
+	CGUISlider *newControl = new CGUISlider(x, y, w, h, name, 0.0f, 1.0f, 0.0f);
 	if (newControl)
 		m_controls.push_back(newControl);
 		

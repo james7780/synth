@@ -327,14 +327,10 @@ static void UpdateMainPageFromPatch(CGUIManager &gm, const CPatch &patch)
 	((CGUIOptionList *)control)->SetSelectedIndex(patch.m_osc1.m_waveType);
 
 	control = gm.GetControl("Duty1Slider");
-	((CGUISlider *)control)->m_value = patch.m_osc1.m_duty;
-	((CGUISlider *)control)->m_minVal = 0.0f;
-	((CGUISlider *)control)->m_maxVal = 1.0f;
+	((CGUISlider *)control)->Init(patch.m_osc1.m_duty, 0.0f, 1.0f, false);
 
 	control = gm.GetControl("Detune1Slider");
-	((CGUISlider *)control)->m_value = patch.m_osc1.m_detune;
-	((CGUISlider *)control)->m_minVal = -1.0f;
-	((CGUISlider *)control)->m_maxVal = 1.0f;
+	((CGUISlider *)control)->Init(patch.m_osc1.m_detune, -1.0f, 1.0f, false);
 
 	control = gm.GetControl("VEnv1Envelope");
 	SetEnvelopeControlData((CGUIEnvelope *)control, &patch.m_osc1.m_envelope[ET_VOLUME]);
@@ -355,14 +351,10 @@ static void UpdateMainPageFromPatch(CGUIManager &gm, const CPatch &patch)
 	((CGUIOptionList *)control)->SetSelectedIndex(patch.m_osc2.m_waveType);
 
 	control = gm.GetControl("Duty2Slider");
-	((CGUISlider *)control)->m_value = patch.m_osc2.m_duty;
-	((CGUISlider *)control)->m_minVal = 0.0f;
-	((CGUISlider *)control)->m_maxVal = 1.0f;
+	((CGUISlider *)control)->Init(patch.m_osc2.m_duty, 0.0f, 1.0f, false);
 
 	control = gm.GetControl("Detune2Slider");
-	((CGUISlider *)control)->m_value = patch.m_osc2.m_detune;
-	((CGUISlider *)control)->m_minVal = -1.0f;
-	((CGUISlider *)control)->m_maxVal = 1.0f;
+	((CGUISlider *)control)->Init(patch.m_osc2.m_detune, -1.0f, 1.0f, false);
 
 	control = gm.GetControl("VEnv2Envelope");
 	SetEnvelopeControlData((CGUIEnvelope *)control, &patch.m_osc2.m_envelope[ET_VOLUME]);
@@ -383,14 +375,10 @@ static void UpdateMainPageFromPatch(CGUIManager &gm, const CPatch &patch)
 	((CGUIOptionList *)control)->SetSelectedIndex(patch.m_LFOWaveform);
 
 	control = gm.GetControl("LFOFreqSlider");
-	((CGUISlider *)control)->m_value = patch.m_LFOFreq;
-	((CGUISlider *)control)->m_minVal = 0.1f;
-	((CGUISlider *)control)->m_maxVal = LFO_MAX_FREQ;
+	((CGUISlider *)control)->Init(patch.m_LFOFreq, 0.1f, LFO_MAX_FREQ, false);
 
 	control = gm.GetControl("LFODepthSlider");
-	((CGUISlider *)control)->m_value = patch.m_LFODepth;
-	// default slider range is 0.0 to 1.0
-
+	((CGUISlider *)control)->Init(patch.m_LFODepth, 0.0f, 1.0f, false);
 }
 
 /// Update the patch data from the controls

@@ -123,16 +123,24 @@ public:
 class CGUISlider : public CGUIControl
 {
 public:
-	CGUISlider(int x, int y, int width, int height, const char *name, float minVal, float maxVal);
+    CGUISlider(int x, int y, int width, int height, const char *name, float minVal, float maxVal, bool logScale);
 
+    // Set up the slider for linear or log operation
+  	void Init(float value, float minVal, float maxVal, bool logScale);
 	int EditSlider(const CGUIDrawContext &drawContext);
 	int OnClick(const CGUIDrawContext &drawContext, int x, int y);
 	int OnSwipe(int x, int y, int dx, int dy);
 	void Draw(const CGUIDrawContext &drawContext);		// TODO : state?
+
+    // Get the value of the slider at the current position
+    float GetValue(int pos);
+    /// Get the position correspondingt o the current intenal m_value
+    int GetPosition();
 	
 	float m_value;
 	float m_minVal;
 	float m_maxVal;
+    bool m_logScale;               // Slider uses logarithmic scaling
 };
 
 /// Envelope control
