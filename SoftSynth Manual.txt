@@ -1,0 +1,212 @@
+Raspberry Pi Softsynth Manual
+
+1. Overview
+
+	Software synth on Raspberry Pi intended for "embedded" use (eg: to make an actual hardware synthesiser).
+ 	Bare metal (or at least minimal fast-boot Linux OS).
+
+2. Features
+
+	To sound good: 
+	- 16 notes polyphonic (32 oscillators)
+	- Multi-timbral (2 oscillators per played note)
+	- DAPDSR envelopea (delay/attack/peak/decay/sustain/release)
+	- Various oscillator waveforms
+		+ SINE/SQUARE/SAW/TRI/NOISE/CUSTOM
+		+ "phase distorting" the waveform ("variable duty cycle")
+	- LFO and modulation
+		- Various LFO waveforms
+		- Route LFO to volume, pitch, filter, PWM		- Effects on individual notes:
+		- Lowpass filter
+	- Effects on master output
+		- Compression
+		- Reverb / delay
+	- [TODO] Sample playback
+		- For audio tracks
+
+	Control:
+	- Triggering notes
+		- Handle MIDI note on / note off messages
+		- Handle "running" note on/off messages (?)
+	- Modulation
+		- MIDI Pitch bend messages
+		- MIDI Mod wheel messages
+	- Tweaking parameters
+		- MIDI control messages
+		- Use de-facto standard message numbers
+	- Selecting patches
+		- MIDI patch select messages
+		- Use de-facto standards for patch select
+	- [TODO] Mapping MIDI channels to patches
+		- For supporting keyboard splits, drums etc
+	- [TODO] Arpeggiator
+		- Various patterns
+		- Custom patterns
+		- Various speeds
+	- [TODO] Timing and sync
+		- Set BPM (for arpegiattor, sequencer etc)
+		- Sync to external (MIDI sync)
+
+	Composing:
+	- [TODO] Sequencer
+		- Sends MIDI message to the synth engine
+		- Separate app from the synth engine?
+		- Tracker? "Phrase sequencer"?
+	- [TODO] Composing tools (?)
+
+
+
+
+3. Design/Implementation:
+
+- Synth engine (C++) running in one process 
+- GUI (python) running in another process
+- Sequencer etc running in other processes/cores
+- UI and synth / sequencer talk to each other using IPC (mqueue)
+- OO C++
+- Portability
+
+
+CWaveSynth Object:
+	- Manages Patches
+		- Patch collection
+		- Save / load patches
+		- Copy patches
+	- Manages active voices
+		- Assigns voices (NoteOn())
+		- Sets up voices with Patch settings
+		- Updates voices
+			- Update voice vol/pitch/filter from patch envelopes
+			- Update voice vol/pitch filter from patch LFO
+			- Disables voice after release finished
+	- Mixes voices to output buffer (using CMixer)
+	- Handles transpose
+	- Recieves and processes MIDI messages:
+		- MIDI note on/off
+		- MIDI control change
+			- Pitch bend and modulation
+			- Patch change
+			- Tweak knobs
+
+
+CPatch Object:
+	- Holds settings for one patch
+		- Name
+		- OSC1 + OSC2 			"COscillator" class
+			- Waveform   
+			- Duty cycle (PWM)
+			- Detune
+			- volume envelope
+			- pitch envelope
+			- filter envelope
+			- PWM envelope
+			- LFO waveform
+			- LFO freq
+			- LFO pitch envelope	(sets level from "sustain" level)  (	vibrato)
+			- LFO volume envelope	(sets level)  (tremolo)
+			- LFO filter envelope	(sets level)
+			- LFO PWM envelope      (sets level)
+
+		- Modulation			"CModulator" class
+			- Pitch bend range
+			- Modulation range
+			- Modulation target(s)
+				- PWM      (relative)
+				- Filter   (relative)
+				- LFO freq (relative)
+
+
+
+
+ 
+
+
+
+Synth GUI Application:
+=====================
+
+The Synth GUI emulates the "front panel" for the soft synth:
+
+	MAIN PAGE: 
+	- Current patch settings
+		- Patch name
+		- Patch relative volume
+		- Patch OSC1 settings
+			- Waveform   
+			- Duty cycle (PWM)
+			- Detune
+			- volume envelope
+			- pitch envelope
+			- filter envelope
+			- PWM envelope
+			- LFO pitch envelope  (vibrato)
+			- LFO volume envelope (tremolo)
+			- LFO filter envelope
+			- LFO PWM envelope   
+		- Patch OSC2 settings
+			- Waveform   
+			- Duty cycle (PWM)
+			- Detune
+			- volume envelope
+			- pitch envelope
+			- filter envelope
+			- PWM envelope
+			- LFO pitch envelope  (vibrato)
+			- LFO volume envelope (tremolo)
+			- LFO filter envelope
+			- LFO PWM envelope   
+		- Patch LFO settings (become current LFO settings when patch is selected)
+			- LFO waveform
+			- LFO freq
+			- LFO depth      (sets max LFO level)
+
+		- [TODO] Patch Mod settings (become current mod settings when patch selected)
+			- Pitch bend range
+			- Modulation range
+			- Modulation target(s)
+	- FX settings (type & params)
+		- Reverb level
+	- Patch select button
+		- Takes you to patch select page
+	- "Save" button (to save changes to patch settings)
+		- NOTE: Synth engine keeps a "working" copy of the current patch
+		-       When you save, this working copy is copied back to the current patch
+
+	PATCH SELECT PAGE
+	- Choose patch from a list/array
+
+	SYSTEM PAGE
+	- MIDI config
+		- Mapping of midi controller id's to synth settings
+	- 
+
+	[TODO] SEQUENCER PAGE
+	- 8 Tracks
+	- 1 Drum track
+	- Phrase sequencer?
+	- Import audio (WAV files)
+	- Drum pattern editor
+
+
+
+
+Envelope Editor Control:
+
++--------+---+------------+----+------+
+|       /:\  :            :    :      | 
+|      / : \ :            :    :      |
+|     /  :  \:            :    :      |
+|    /   :   +----\ \-----+    :      |
+|   /    :   :            :\   :      |
+|  /     :   :            : \  :      |
+| /      :   :            :  \ :      |
+|/       :   :            :   \:      |
++--------+---+------------+----+------+
+ D: [          ] 100 
+ A: [          ] 200ms
+ P: [          ] 
+ D: [          ] 100 
+ S: [          ] 80%
+ R: [          ] 1000
+
+Adjust DAPDSR sliders for desired envelope

@@ -1,0 +1,102 @@
+Synth Message Format
+====================
+
+The Synth Engine speaks to the outside world via MIDI messages.
+These MIDI messages can come directly thru the /dev/midi1 hardware interface, or via the mqueue system.
+
+Note: All float values must be scaled to range 0.0 to 1.0, before being "packed" into a 7-bit MIDI value (0 to 127).
+
+Patch parameter changes are sent via the mqueue system, using MIDI Sysex messages.
+
+All Patch Parameters have an "address" relative to the start of the patch data:
+
+// Parameter addresses
+Param Name	Offset	Size
+PADDR_NAME 	0	20 bytes
+PADDR_MIXVOL	20	1 byte + padding
+PADDR_OSC1	22	52 bytes
+PADDR_OSC2	74	52 bytes
+PADDR_LFO	126	3 bytes + padding
+PADDR_MOD1	146	3 bytes + padding
+PADDR_MOD2	150	3 bytes + padding
+PADDR_END	154
+
+This allows (in theory) for sending a single parameter (or a subset of a parameters) by specifying a "start address" and size in the sysex message.
+
+PADDR_NAME is the patch name (20 ASCII characters)
+
+PADDR_MIXVOL is the patches "mix volume" (relative volume)
+	- 0 to 127
+
+PADDR_OSC1 is the parameter info for Oscillator 1:
+	- waveform type (1 byte, def = 0)
+	- wave duty (1 byte, def = 64 (50% duty))
+	- detune (1 byte, def = 64 (no detune))
+	- padding/reserved (1 byte)
+	- vol envelope (6 bytes) (see "Envelope data" below)
+	- pitch envelope (6 bytes)
+	- filter envelope (6 bytes)
+	- PWM envelope (6 bytes)
+	- LFO vol envelope (6 bytes)
+	- LFO pitch envelope (6 bytes)
+	- LFO filter envelope (6 bytes)
+	- LFO PWM envelope (6 bytes)
+
+Envelope data (6 bytes):
+	- delay (1 byte, 127 = 10 seconds)
+	- attack (1 byte, 127 = 10 seconds)
+	- peak level (1 byte)
+	- decay (1 byte, 127 = 10 seconds)
+	- sustain (1 byte)
+	- release (1 byte, 127 = 10 seconds)
+
+PADDR_OSC2 is the parameter info for Oscillator 2:
+	- same as oscillator 1
+
+PADDR_LFO is the LFO parameter info for this patch:
+	- LFO waveform (1 byte, def = 0)
+	- LFO freqency (1 byte, 127 = 20Hz?)
+	- LFO depth (1 byte)
+
+PADDR_MOD1 is the modulator 1 parameter info for this patch:
+	- MOD range (1 byte, def = 0)
+	- MOD target (1 byte, specifies what MOD1 affects)
+
+PADDR_MOD2 is the modulator 2 parameter info for this patch:
+	- same as MOD1
+
+
+
+Messages sent from GUI to the Synth Engine:
+
+1. Request Patch Data (for current "working" patch)
+	- MIDI SysEx "RQ1" message to request the patch data:
+	char buffer[] = { 0xF0, 0x7D, 0x01, 0x01, 0x11, 0x00, 0x00, PADDR_END, 0x00, 0xF7 } ;
+	PostMessage(mq, buffer, 10);
+
+	(Note: the "address" bytes and the "size" bytes above could be modified to request just eg: LFO settings from the patch data).
+
+
+2. Send GUI Patch settings to the Synth Engine's "working" patch
+	- MIDI SysEx "DT1" message to send patch data:
+	char outBuffer[MSG_MAX_SIZE] = { 0xF0, 0x7D, 0x01, 0x01, 0x12, 0x00, 0x00, PADDR_END, 0x00, 0xF7 } ;
+	char *p = outBuffer + 8; 
+	int packedBytes = workPatch.PackParams(p);
+	PostMessage(mqEngine, outBuffer, packedBytes + 10);
+
+	(Note: the "address" bytes and the "size" bytes above could be modified to send just eg: patch LFO settings).
+
+
+3. Receive Patch Data from Synth Engine:
+	- byte 4 of the message buffer will be 0x12 (MIDI "DT1")
+	- Patch data starts at byte 8 of the message buffer, and is in the format as specified above.
+
+4. Some GUI control changes are sent as standard MIDI messages over the mqueue system:
+	- Change filter cutoff - 0xB0, 74, value (3 bytes)
+	- Reverb Depth - 0xB0, 91, value (3 bytes)
+	- Save Current Patch - 0xB0, 102, 1 (3 bytes)
+		- "Stores" working patch settings to the current patch slot
+	- Select Patch - 0xC0, patch index, 0 (3 bytes)
+
+
+
