@@ -13,6 +13,7 @@ public:
 	CGUIDrawContext(SDL_Renderer *renderer, FontEngine *font)
 		:	m_renderer(renderer),
 			m_font(font),
+			m_drawShadow(false),
 			m_dirty(true)
 		{
 		SetForeColour(255, 255, 255, 0);
@@ -44,6 +45,7 @@ public:
 	FontEngine *m_font;			// Text rendering engine
 	SDL_Colour m_foreColour;	// Foreground colour
 	SDL_Colour m_backColour;	// Background colour
+	bool m_drawShadow;
 	bool m_dirty;				// Whether "page" is dirty
 };
 
@@ -186,7 +188,7 @@ public:
 	CGUIControl *AddControl(int x, int y, int w, int h, CONTROLTYPE type, const char *name, const char *text);
 	CGUILabel *AddLabel(int x, int y, int w, int h, const char *name, const char *text);
 	CGUIButton *AddButton(int x, int y, int w, int h, const char *name, const char *text);
-	CGUISlider *AddSlider(int x, int y, int w, int h, const char *name);
+	CGUISlider *AddSlider(int x, int y, int w, int h, const char *name, const char *text);
 
 	CGUIControl *GetControl(const char *name) const;
 	CGUIControl *GetControl(int x, int y) const;

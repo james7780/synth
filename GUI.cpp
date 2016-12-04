@@ -7,7 +7,7 @@
 //#include <SDL2/SDL.h>
 #include "GUI.h"
 #include "fontengine.h"
-
+#include "Envelope.h"
 
 /// CGUIControl - Base class for controls
 CGUIControl::CGUIControl(int x, int y, int width, int height, unsigned short type, const char *name, const char *text)
@@ -137,7 +137,7 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 
 	SDL_Renderer *renderer = drawContext.m_renderer;
 	SDL_Texture *txKeys = SDL_CreateTextureFromSurface(renderer, imgKeys);
-	SDL_Texture *txKeysHilite = SDL_CreateTextureFromSurface(renderer, imgKeysHilite);
+	//SDL_Texture *txKeysHilite = SDL_CreateTextureFromSurface(renderer, imgKeysHilite);
 	
 	// Setup the popup layout
 	int parentWidth, parentHeight;
@@ -234,9 +234,6 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 				}	// end switch
 			}	// wend event
 
-		// Update labels
-		char s[20];
-
 		// Draw background and frame
 		gmPopup.DrawAllControls();
 
@@ -332,7 +329,7 @@ int CGUISlider::EditSlider(const CGUIDrawContext &drawContext)
 	const int SLIDERWIDTH = 320;
 	const int SLIDERHEIGHT = SLIDERWIDTH / 8;
 	const int CW = 60;
-	const int CH = 17;
+	const int CH = 20;
 	const int MARGIN = 4;
 	const int POPUPWIDTH = SLIDERWIDTH + 2 * MARGIN;
 	const int POPUPHEIGHT = SLIDERHEIGHT + CH + 3 * MARGIN;
@@ -349,11 +346,12 @@ int CGUISlider::EditSlider(const CGUIDrawContext &drawContext)
 //	gmPopup.m_drawContext.m_font = smallFont;
 //	gmPopup.m_drawContext.SetForeColour(255, 255, 255, 0);
 	gmPopup.m_drawContext.SetBackColour(0, 0, 0, 255);
+	gmPopup.m_drawContext.m_drawShadow = true;
 
 	// create BIG slider
 	int x1 = x0 + MARGIN;
 	int y1 = y0 + MARGIN;
-	CGUISlider *slider = gmPopup.AddSlider(x1, y1, SLIDERWIDTH, SLIDERHEIGHT,  "popupSlider");
+	CGUISlider *slider = gmPopup.AddSlider(x1, y1, SLIDERWIDTH, SLIDERHEIGHT,  "popupSlider", NULL);
 	slider->Init(this->m_value, this->m_minVal, this->m_maxVal, this->m_logScale);
 
 	// Calc x pos of "original value" line
@@ -363,7 +361,7 @@ int CGUISlider::EditSlider(const CGUIDrawContext &drawContext)
 	// create label
 	char labelText[32];
 	strcpy(labelText, m_name);
-	y1 = y0 + POPUPHEIGHT - MARGIN - CH;
+	y1 = y0 + POPUPHEIGHT - MARGIN - CH - 2;
 	CGUILabel *label = gmPopup.AddLabel(x1, y1, CW, CH, "label", labelText);
 
 	// Create Close button
@@ -400,7 +398,11 @@ int CGUISlider::EditSlider(const CGUIDrawContext &drawContext)
 			}	// wend event
 
 		// Update label
-		sprintf(labelText, "%s = %.3f", m_name, slider->m_value);
+		if (m_text)
+			sprintf(labelText, "%s = %.3f", m_text, slider->m_value);
+		else
+			sprintf(labelText, "%s = %.3f", m_name, slider->m_value);
+
 		label->SetText(labelText);
 
 		// Draw background, frame and controls
@@ -473,26 +475,27 @@ void CGUISlider::Draw(const CGUIDrawContext &drawContext)
 float CGUISlider::GetValue(int pos)
 {
   // position must be between 0 and 100
-  pos = max(pos, 0);
-  pos = min(pos, 100);
+  pos = std::max(pos, 0);
+  pos = std::min(pos, 100);
 
   // The result should be between m_minVal an m_maxVal
   float retval = 0.0f;
   if (m_logScale)
     {
-    float minv = log(m_minVal);
+    float minv = log(std::max(m_minVal, 1.0f));  // log value must be >- 1.0f
     float maxv = log(m_maxVal);
 
     // calculate adjustment factor
     float k = (maxv - minv) / 100;
-    retval = exp(minv + k * pos);
+    retval = exp(minv + k * pos) - 1.0f;
     }
   else
     {
 	float k = (float)pos / 100;
 	retval = m_minVal + k * (m_maxVal - m_minVal);        
     }
-    
+
+printf ("GetValue(%d) = %.2f\n", pos, retval);
   return retval;
 }
 
@@ -503,17 +506,19 @@ int CGUISlider::GetPosition()
   int pos = 0;
   if (m_logScale)
     {
-    float minv = log(m_minVal);
+    float minv = log(std::max(m_minVal, 1.0f));
     float maxv = log(m_maxVal);
     // calculate adjustment factor
     float k = (maxv - minv) / 100;
-    pos = (int)((log(m_value) - minv) / k);    // + minp;  (minp = 0)
+    pos = (int)((log(m_value + 1.0f) - minv) / k);    // + minp;  (minp = 0)
     }
   else
     {
     float k = (m_value - m_minVal) / (m_maxVal - m_minVal);
     pos = (int)(k * 100);
     }
+
+//printf ("GetPosition() = %d\n", pos);
     
   return pos;
 }
@@ -536,8 +541,8 @@ CGUIEnvelope::CGUIEnvelope(int x, int y, int width, int height, const char *name
 int CGUIEnvelope::EditADSR(const CGUIDrawContext &drawContext)
 {
 	// Setup the popup layout
-	const int CW = 60;
-	const int CH = 17;
+	const int CW = 80;
+	const int CH = 20;
 	const int MARGIN = 4;
 	const int POPUPWIDTH = 4 * CW + 5 * MARGIN;
 	const int POPUPHEIGHT = 8 * CH + 6 * MARGIN;
@@ -558,29 +563,30 @@ int CGUIEnvelope::EditADSR(const CGUIDrawContext &drawContext)
 //	gmPopup.m_drawContext.m_font = smallFont;
 //	gmPopup.m_drawContext.SetForeColour(255, 255, 255, 0);
 	gmPopup.m_drawContext.SetBackColour(0, 0, 0, 255);
+	gmPopup.m_drawContext.m_drawShadow = true;
 
 	int y1 = y0 + POPUPHEIGHT - (MARGIN * 4) - (CH * 4);
 	int x1 = x0 + MARGIN;
-	CGUISlider *sliderDL = gmPopup.AddSlider(x1, y1, CW, CH,  "DelaySlider");
-	sliderDL->Init(m_adsr[0], 0.0f, 4000.0f, true);
-	CGUISlider *sliderA = gmPopup.AddSlider(x1 + (MARGIN + CW), y1, CW, CH,  "AttackSlider");
-	sliderA->Init(m_adsr[1], 0.0f, 4000.0f, true);
-	CGUISlider *sliderD = gmPopup.AddSlider(x1 + 2*(MARGIN + CW), y1, CW, CH, "DecaySlider");
-	sliderD->Init(m_adsr[3], 0.0f, 4000.0f, true);
-	CGUISlider *sliderR = gmPopup.AddSlider(x1 + 3*(MARGIN + CW), y1, CW, CH, "ReleaseSlider");
-	sliderR->Init(m_adsr[5], 0.0f, 4000.0f, true);
+	CGUISlider *sliderDL = gmPopup.AddSlider(x1, y1, CW, CH,  "DelaySlider", "Delay (ms)");
+	sliderDL->Init(m_adsr[0], 0.0f, ENV_MAX_ATTACK, true);
+	CGUISlider *sliderA = gmPopup.AddSlider(x1 + (MARGIN + CW), y1, CW, CH,  "AttackSlider", "Attack (ms)");
+	sliderA->Init(m_adsr[1], 0.0f, ENV_MAX_ATTACK, true);
+	CGUISlider *sliderD = gmPopup.AddSlider(x1 + 2*(MARGIN + CW), y1, CW, CH, "DecaySlider", "Decay (ms)");
+	sliderD->Init(m_adsr[3], 0.0f, ENV_MAX_ATTACK, true);
+	CGUISlider *sliderR = gmPopup.AddSlider(x1 + 3*(MARGIN + CW), y1, CW, CH, "ReleaseSlider", "Release (ms)");
+	sliderR->Init(m_adsr[5], 0.0f, ENV_MAX_ATTACK, true);
 	y1 = y0 + POPUPHEIGHT - (MARGIN * 2) - (CH * 2);
-	CGUISlider *sliderP = gmPopup.AddSlider(x1, y1, CW, CH, "PeakSlider");
+	CGUISlider *sliderP = gmPopup.AddSlider(x1, y1, CW, CH, "PeakSlider", "Peak Level");
 	sliderP->Init(m_adsr[2], 0.0f, 1.0f, false);
-	CGUISlider *sliderS = gmPopup.AddSlider(x1 + MARGIN + CW, y1, CW, CH, "SustainSlider");
+	CGUISlider *sliderS = gmPopup.AddSlider(x1 + MARGIN + CW, y1, CW, CH, "SustainSlider", "Sustain Level");
 	sliderS->Init(m_adsr[4], 0.0f, 1.0f, false);
 	
-	y1 = y0 + POPUPHEIGHT - (MARGIN * 3) - (CH * 3);
+	y1 = y0 + POPUPHEIGHT - (MARGIN * 3) - (CH * 3) - 2;
 	CGUILabel *labelDL = gmPopup.AddLabel(x1, y1, CW, CH, "LabelDL", "D = ");
 	CGUILabel *labelA = gmPopup.AddLabel(x1 + (MARGIN + CW), y1, CW, CH, "LabelA", "A = ");
 	CGUILabel *labelD = gmPopup.AddLabel(x1 + 2*(MARGIN + CW), y1, CW, CH, "LabelD", "D = ");
 	CGUILabel *labelR = gmPopup.AddLabel(x1 + 3*(MARGIN + CW), y1, CW, CH, "LabelR", "R = ");
-	y1 = y0 + POPUPHEIGHT - (MARGIN * 1) - (CH * 1);
+	y1 = y0 + POPUPHEIGHT - (MARGIN * 1) - (CH * 1) - 2;
 	CGUILabel *labelP = gmPopup.AddLabel(x1, y1, CW, CH, "LabelP", "P = ");
 	CGUILabel *labelS = gmPopup.AddLabel(x0 + (MARGIN + CW), y1, CW, CH, "LabelS", "S = ");
 
@@ -619,17 +625,17 @@ int CGUIEnvelope::EditADSR(const CGUIDrawContext &drawContext)
 
 		// Update labels
 		char s[20];
-		sprintf(s, "D=%.0fms", sliderDL->m_value);
+		sprintf(s, "D=%.0f", sliderDL->m_value);
 		labelDL->SetText(s);
-		sprintf(s, "A=%.0fms", sliderA->m_value);
+		sprintf(s, "A=%.0f", sliderA->m_value);
 		labelA->SetText(s);
 		sprintf(s, "P=%.0f%%", sliderP->m_value * 100.0f);
 		labelP->SetText(s);
-		sprintf(s, "D=%.0fms", sliderD->m_value);
+		sprintf(s, "D=%.0f", sliderD->m_value);
 		labelD->SetText(s);
 		sprintf(s, "S=%.0f%%", sliderS->m_value * 100.0f);
 		labelS->SetText(s);
-		sprintf(s, "R=%.0fms", sliderR->m_value);
+		sprintf(s, "R=%.0f", sliderR->m_value);
 		labelR->SetText(s);
 
 		// Draw background, frame and controls
@@ -642,11 +648,14 @@ int CGUIEnvelope::EditADSR(const CGUIDrawContext &drawContext)
 		r2.h -= (MARGIN * 6 + CH * 4);
 		r2.w -= (MARGIN * 2);
 		SDL_RenderDrawRect(renderer, &r2);
-		int x0 = r2.x + (int)(sliderDL->m_value / 100);
-		int x1 = x0 + (int)(sliderA->m_value / 100);
-		int x2 = x1 + (int)(sliderD->m_value / 100);
-		int x3 = x2 + 40;
-		int x4 = x3 + (int)(sliderR->m_value / 100);
+		const int susWidth = 60;
+		float xtotal = (m_adsr[0] + m_adsr[1] + m_adsr[3] + m_adsr[5]);
+		float xscale = (r2.w - susWidth) / xtotal; 
+		int x0 = r2.x + (int)(sliderDL->m_value * xscale);
+		int x1 = x0 + (int)(sliderA->m_value * xscale);
+		int x2 = x1 + (int)(sliderD->m_value * xscale);
+		int x3 = x2 + susWidth;
+		int x4 = x3 + (int)(sliderR->m_value * xscale);
 		int h = r2.h;
 		int y2 = r2.y + h;
 		int yp = y2 - (int)(sliderP->m_value * h);
@@ -833,6 +842,8 @@ CGUIControl *CGUIManager::AddControl(int x, int y, int w, int h, CONTROLTYPE typ
 			break;
 		case CT_SLIDER :
 			newControl = new CGUISlider(x, y, w, h, name, 0.0f, 1.0f, 0.0f);
+			if (text)
+				strcpy(newControl->m_text, text);		// for use in slider popup
 			break;
 		case CT_ENVELOPE :
 			newControl = new CGUIEnvelope(x, y, w, h, name, text);
@@ -870,11 +881,16 @@ CGUIButton *CGUIManager::AddButton(int x, int y, int w, int h, const char *name,
 
 
 /// Shortcut - add slider control
-CGUISlider *CGUIManager::AddSlider(int x, int y, int w, int h, const char *name)
+CGUISlider *CGUIManager::AddSlider(int x, int y, int w, int h, const char *name, const char *text)
 {
 	CGUISlider *newControl = new CGUISlider(x, y, w, h, name, 0.0f, 1.0f, 0.0f);
 	if (newControl)
+		{
+		if (text)
+			strcpy(newControl->m_text, text);		// for use in slider popup
+
 		m_controls.push_back(newControl);
+		}
 		
 	return newControl;
 }
@@ -924,12 +940,22 @@ void CGUIManager::DrawControl(const char *name)
 
 void CGUIManager::DrawAllControls()
 {
+	// draw shadow if neccessary
+	if (m_drawContext.m_drawShadow)
+		{
+		//SDL_Colour c = { 255, 0, 0, 0 };
+		m_drawContext.SetDrawColour(m_drawContext.m_backColour);
+		SDL_Rect rect = m_rect;
+		rect.x += 12; rect.y += 12;
+		SDL_RenderFillRect(m_drawContext.m_renderer, &rect);
+		}
 	// draw background and frame
 	m_drawContext.SetDrawColour(m_drawContext.m_backColour); 
 	SDL_RenderFillRect(m_drawContext.m_renderer, &m_rect);
 	m_drawContext.SetDrawColour(m_drawContext.m_foreColour); 
 	SDL_RenderDrawRect(m_drawContext.m_renderer, &m_rect);
 
+	// Draw all the controls
 	for (unsigned int i = 0; i < m_controls.size(); i++)
 		{
 		CGUIControl *control = m_controls[i];

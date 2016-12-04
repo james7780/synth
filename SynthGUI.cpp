@@ -221,8 +221,8 @@ static int SetupMainPage(CGUIManager &gm)
 	gm.AddControl(LCOL1X, ROW1Y + RDY*9, LABELW, CH,  CT_LABEL,      "LFOFEnv1Label", "LFO F Env");
 
 	gm.AddControl(CCOL1X, ROW1Y + RDY, CNTRLW, CH,   CT_OPTIONLIST, "WF1Option", NULL);
-	gm.AddControl(CCOL1X, ROW1Y + RDY*2, CNTRLW, CH, CT_SLIDER,     "Duty1Slider", NULL);
-	gm.AddControl(CCOL1X, ROW1Y + RDY*3, CNTRLW, CH, CT_SLIDER,     "Detune1Slider", NULL);
+	gm.AddControl(CCOL1X, ROW1Y + RDY*2, CNTRLW, CH, CT_SLIDER,     "Duty1Slider", "Duty");
+	gm.AddControl(CCOL1X, ROW1Y + RDY*3, CNTRLW, CH, CT_SLIDER,     "Detune1Slider", "Detune");
 	gm.AddControl(CCOL1X, ROW1Y + RDY*4, CNTRLW, CH, CT_ENVELOPE,   "VEnv1Envelope", NULL);
 	gm.AddControl(CCOL1X, ROW1Y + RDY*5, CNTRLW, CH, CT_ENVELOPE,   "PEnv1Envelope", NULL);
 	gm.AddControl(CCOL1X, ROW1Y + RDY*6, CNTRLW, CH, CT_ENVELOPE,   "FEnv1Envelope", NULL);
@@ -243,8 +243,8 @@ static int SetupMainPage(CGUIManager &gm)
 	gm.AddControl(LCOL2X, ROW1Y + RDY*9, LABELW, CH,  CT_LABEL,      "LFOFEnv2Label", "LFO F Env");
 
 	gm.AddControl(CCOL2X, ROW1Y + RDY, CNTRLW, CH,  CT_OPTIONLIST, "WF2Option", NULL);
-	gm.AddControl(CCOL2X, ROW1Y + RDY*2, CNTRLW, CH,  CT_SLIDER,     "Duty2Slider", NULL);
-	gm.AddControl(CCOL2X, ROW1Y + RDY*3, CNTRLW, CH,  CT_SLIDER,     "Detune2Slider", NULL);
+	gm.AddControl(CCOL2X, ROW1Y + RDY*2, CNTRLW, CH,  CT_SLIDER,     "Duty2Slider", "Duty");
+	gm.AddControl(CCOL2X, ROW1Y + RDY*3, CNTRLW, CH,  CT_SLIDER,     "Detune2Slider", "Detune");
 	gm.AddControl(CCOL2X, ROW1Y + RDY*4, CNTRLW, CH, CT_ENVELOPE,   "VEnv2Envelope", NULL);
 	gm.AddControl(CCOL2X, ROW1Y + RDY*5, CNTRLW, CH, CT_ENVELOPE,   "PEnv2Envelope", NULL);
 	gm.AddControl(CCOL2X, ROW1Y + RDY*6, CNTRLW, CH, CT_ENVELOPE,   "FEnv2Envelope", NULL);
@@ -259,16 +259,16 @@ static int SetupMainPage(CGUIManager &gm)
 	gm.AddControl(LCOL3X, ROW1Y + RDY*3, LABELW, CH, CT_LABEL,      "LFODepthLabel", "Depth");
 
 	gm.AddControl(CCOL3X, ROW1Y + RDY, CNTRLW, CH,  CT_OPTIONLIST, "LFOWFOption", NULL);
-	gm.AddControl(CCOL3X, ROW1Y + RDY*2, CNTRLW, CH,  CT_SLIDER,     "LFOFreqSlider", NULL);
-	gm.AddControl(CCOL3X, ROW1Y + RDY*3, CNTRLW, CH,  CT_SLIDER,     "LFODepthSlider", NULL);
+	gm.AddControl(CCOL3X, ROW1Y + RDY*2, CNTRLW, CH,  CT_SLIDER,     "LFOFreqSlider", "LFO Freq.");
+	gm.AddControl(CCOL3X, ROW1Y + RDY*3, CNTRLW, CH,  CT_SLIDER,     "LFODepthSlider", "LFO Depth");
 
 	// Reverb parameters
 	gm.AddControl(LCOL3X, ROW1Y + RDY*4, LABELW, CH, CT_LABEL,      "RvbDepthLabel", "Rev Depth");
-	gm.AddControl(CCOL3X, ROW1Y + RDY*4, CNTRLW, CH, CT_SLIDER,     "RvbDepth", NULL);
+	gm.AddControl(CCOL3X, ROW1Y + RDY*4, CNTRLW, CH, CT_SLIDER,     "RvbDepth", "Reverb Depth");
 
 	// Filter parameters
 	gm.AddControl(LCOL3X, ROW1Y + RDY*5, LABELW, CH, CT_LABEL,      "FilterCutoffLabel", "Filt Cutoff");
-	gm.AddControl(CCOL3X, ROW1Y + RDY*5, CNTRLW, CH, CT_SLIDER,     "FilterCutoff", NULL);
+	gm.AddControl(CCOL3X, ROW1Y + RDY*5, CNTRLW, CH, CT_SLIDER,     "FilterCutoff", "Filter Cutoff");
 
 /*
 
