@@ -345,7 +345,8 @@ int CGUISlider::EditSlider(const CGUIDrawContext &drawContext)
 	gmPopup.m_drawContext = drawContext;
 //	gmPopup.m_drawContext.m_font = smallFont;
 //	gmPopup.m_drawContext.SetForeColour(255, 255, 255, 0);
-	gmPopup.m_drawContext.SetBackColour(0, 0, 0, 255);
+	gmPopup.m_drawContext.SetTextColour(192, 128, 32, 0);
+	gmPopup.m_drawContext.SetBackColour(64, 64, 64, 255);
 	gmPopup.m_drawContext.m_drawShadow = true;
 
 	// create BIG slider
@@ -419,6 +420,10 @@ int CGUISlider::EditSlider(const CGUIDrawContext &drawContext)
 		SDL_RenderPresent(renderer);
 		SDL_Delay(10);
 		}	// wend
+
+	// Redraw all controls in the parent manager
+	if (drawContext.m_gm)
+		drawContext.m_gm->DrawAllControls();
 
 	// Apply the changed slider value
 	// TODO "OK" and "Cancel" modes 
@@ -538,6 +543,7 @@ CGUIEnvelope::CGUIEnvelope(int x, int y, int width, int height, const char *name
 }
 
 /// Popup ADSR editor
+/// @param drawContext		The "parent" draw context
 int CGUIEnvelope::EditADSR(const CGUIDrawContext &drawContext)
 {
 	// Setup the popup layout
@@ -562,6 +568,7 @@ int CGUIEnvelope::EditADSR(const CGUIDrawContext &drawContext)
 	gmPopup.m_drawContext = drawContext;
 //	gmPopup.m_drawContext.m_font = smallFont;
 //	gmPopup.m_drawContext.SetForeColour(255, 255, 255, 0);
+	gmPopup.m_drawContext.SetTextColour(192, 192, 32, 0);
 	gmPopup.m_drawContext.SetBackColour(0, 0, 0, 255);
 	gmPopup.m_drawContext.m_drawShadow = true;
 
@@ -669,6 +676,9 @@ int CGUIEnvelope::EditADSR(const CGUIDrawContext &drawContext)
 		SDL_RenderPresent(renderer);
 		SDL_Delay(10);
 		}	// wend
+
+	// Restore main screen text coloour
+	drawContext.m_font->SetTextColour(32, 192, 32);
 
 	// Apply the changed envelope
 	m_adsr[0] = sliderDL->m_value;
@@ -815,7 +825,7 @@ void CGUIOptionList::SetSelectedIndex(short index)
 /// Control Manager
 ///////////////////////////////////////////////////////////////////////
 CGUIManager::CGUIManager(SDL_Rect rect)
-	:	m_drawContext(NULL, NULL),
+	:	m_drawContext(this, NULL, NULL),
 		m_rect(rect),
 		m_margin(0),
 		m_dragStartX(0),
@@ -955,6 +965,11 @@ void CGUIManager::DrawAllControls()
 	SDL_RenderFillRect(m_drawContext.m_renderer, &m_rect);
 	m_drawContext.SetDrawColour(m_drawContext.m_foreColour); 
 	SDL_RenderDrawRect(m_drawContext.m_renderer, &m_rect);
+	
+	// Set text draw colour
+	m_drawContext.m_font->SetTextColour(m_drawContext.m_textColour.r,
+										m_drawContext.m_textColour.g,
+										m_drawContext.m_textColour.b);
 
 	// Draw all the controls
 	for (unsigned int i = 0; i < m_controls.size(); i++)

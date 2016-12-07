@@ -128,16 +128,25 @@ static void ProcessMessage(char *buffer, int length, mqd_t mqGUI)
 			waveSynth.ProcessMessage(buffer, length);
 			break;
 		case 0xB0 :			// Controller change
-			if (102 == buffer[1] && 1 == buffer[2])
+			if (102 == buffer[1])
 				{
-				// "Save patch" command?
-				waveSynth.StoreWorkPatch(waveSynth.m_currentPatchIndex);
-				printf("Saving patches...\n");
-				waveSynth.SavePatches();
-				
-				// DEBUG - Confirm back to GUI
-				//SendPatchInfo(mqGUI, waveSynth.m_currentPatchIndex);
-				}
+				if (1 == buffer[2])
+					{
+					// "Save patch" command?
+					waveSynth.StoreWorkPatch(waveSynth.m_currentPatchIndex);
+					waveSynth.SavePatches();
+					// DEBUG - Confirm back to GUI
+					//SendPatchInfo(mqGUI, waveSynth.m_currentPatchIndex);
+					}
+				else if (2 == buffer[2])
+					{
+					// "Copy Patch To" command
+					int destPatchNum = buffer[3];
+					printf("Copying work patch to patch %d\n", destPatchNum);
+					waveSynth.StoreWorkPatch(destPatchNum);
+					waveSynth.SavePatches();
+					}
+				}					
 			else if (103 == buffer[1])
 				{
 				// Requesting patch info

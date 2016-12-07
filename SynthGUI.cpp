@@ -57,6 +57,7 @@ static void FlushMessageQueue(mqd_t mq)
 }
 
 /// Patch Select screen
+/// @return -1 if cnacelled, else index of patch selected
 int DoPatchSelect(SDL_Renderer *renderer, mqd_t mqEngine, mqd_t mqGUI)
 {
 	// Remove any lingering messages
@@ -114,7 +115,8 @@ int DoPatchSelect(SDL_Renderer *renderer, mqd_t mqEngine, mqd_t mqGUI)
 	gm.m_drawContext.m_renderer = renderer;
 	gm.m_drawContext.m_font = smallFont;
 	gm.m_drawContext.SetForeColour(255, 255, 255, 0);
-	gm.m_drawContext.SetBackColour(0, 96, 0, 255);
+	gm.m_drawContext.SetTextColour(255, 255, 255, 0);
+	gm.m_drawContext.SetBackColour(0, 64, 0, 255);
 
 	// Add the controls to the layout
 	const int COLUMNS = 4;
@@ -207,6 +209,7 @@ static int SetupMainPage(CGUIManager &gm)
 	// Patch name edit
 	gm.AddControl(MARGIN, MARGIN, LCOL2X, CH, CT_EDIT,    "PatchName", "_patchname");
 	gm.AddControl(MARGIN + LCOL2X + MARGIN, MARGIN, 5 * CW, CH, CT_BUTTON,  "SavePatch", "Save");
+	gm.AddControl(MARGIN + LCOL2X + 2 * MARGIN + 5 * CW, MARGIN, 8 * CW, CH, CT_BUTTON,  "CopyPatchTo", "Copy To");
 
 	// OSC 1 parameters
 	gm.AddControl(LCOL1X - MARGIN, ROW1Y, LABELW, CH, CT_LABEL,      "OSC1Label", "OSC1");
@@ -653,7 +656,8 @@ int main(int argc, char *argv[])
 	CGUIManager gm(gmRect);
 	gm.m_drawContext.m_renderer = renderer;
 	gm.m_drawContext.m_font = smallFont;
-	gm.m_drawContext.SetForeColour(255, 255, 128, 0);
+	gm.m_drawContext.SetForeColour(192, 192, 128, 0);
+	gm.m_drawContext.SetTextColour(32, 192, 32, 0);
 	gm.m_drawContext.SetBackColour(0, 0, 0, 255);
 	SetupMainPage(gm);
 
@@ -740,12 +744,28 @@ int main(int argc, char *argv[])
 						if (0 == strcmp(control->m_name, "SavePatch"))
 							{
 							// Send "Save" message to the synth engine
-							// Use "undefined" CC message 102
-							char outBuffer[MSG_MAX_SIZE] = { 0xB0, 102, 1 };
-							PostMessage(mqEngine, outBuffer, 3);
+							// Use "undefined" CC message 102, data = 1, 0
+							char outBuffer[MSG_MAX_SIZE] = { 0xB0, 102, 1, 0 };
+							PostMessage(mqEngine, outBuffer, 4);
 							// Give synthengine some time to formulate and queue a response
 							SDL_Delay(50);
 							gm.m_controlChanged = false;
+							}
+						else if (0 == strcmp(control->m_name, "CopyPatchTo"))
+							{
+							// Selet patch to copy to
+							int selectedPatch = DoPatchSelect(renderer, mqEngine, mqGUI);
+							if (selectedPatch > -1)
+								{
+								// Send "CopyTo" message to the synth engine
+								// Use "undefined" CC message 102, data = 2
+								char outBuffer[MSG_MAX_SIZE] = { 0xB0, 102, 2, (char)selectedPatch };
+								PostMessage(mqEngine, outBuffer, 4);
+								// Give synthengine some time to formulate and queue a response
+								SDL_Delay(50);
+								// TODO : Change to the destination patch?
+								gm.m_controlChanged = false;
+								}
 							}
 						else if (0 == strcmp(control->m_name, "FilterCutoff"))
 							{

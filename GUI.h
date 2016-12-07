@@ -5,18 +5,21 @@
 #include <string>
 
 class FontEngine;
+class CGUIManager;
 
 /// Draw "context" for controls to use when drawing themselves 
 class CGUIDrawContext
 {
 public:
-	CGUIDrawContext(SDL_Renderer *renderer, FontEngine *font)
-		:	m_renderer(renderer),
+	CGUIDrawContext(CGUIManager *gm, SDL_Renderer *renderer, FontEngine *font)
+		: 	m_gm(gm),
+			m_renderer(renderer),
 			m_font(font),
 			m_drawShadow(false),
 			m_dirty(true)
 		{
 		SetForeColour(255, 255, 255, 0);
+		SetTextColour(32, 192, 32, 0);
 		SetBackColour(0, 0, 0, 0);
 		};
 
@@ -26,6 +29,14 @@ public:
 		m_foreColour.g = g;
 		m_foreColour.b = b;
 		m_foreColour.a = a;
+		}
+
+	void SetTextColour(Uint8 r, Uint8 g, Uint8 b, Uint8 a)
+		{
+		m_textColour.r = r;
+		m_textColour.g = g;
+		m_textColour.b = b;
+		m_textColour.a = a;
 		}
 		
 	void SetBackColour(Uint8 r, Uint8 g, Uint8 b, Uint8 a)
@@ -41,9 +52,11 @@ public:
 		SDL_SetRenderDrawColor(m_renderer, colour.r, colour.g, colour.b, colour.a);
 		}
 	
+	CGUIManager *m_gm;			// The GUIManager that this drawcontext "belongs" to
 	SDL_Renderer *m_renderer;
 	FontEngine *m_font;			// Text rendering engine
 	SDL_Colour m_foreColour;	// Foreground colour
+	SDL_Colour m_textColour;	// Text (font) colouring
 	SDL_Colour m_backColour;	// Background colour
 	bool m_drawShadow;
 	bool m_dirty;				// Whether "page" is dirty

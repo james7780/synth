@@ -31,11 +31,16 @@ FontEngine::FontEngine(SDL_Renderer* renderer, const char* fontfile, int font_ch
 		}
 		
 	m_fontTexture = SDL_CreateTextureFromSurface(renderer, fontImg);
-	if (!m_fontTexture)
+	if (m_fontTexture)
+		{
+		// Does not work - we need font image with alpha channel set
+		//SDL_SetTextureBlendMode(m_fontTexture, SDL_BLENDMODE_BLEND);
+		}
+	else
+		{
 		printf("SDL_CreateTextureFromSurface failed.\n");
+		}
 
-
-		
 }
 
 /// Draw single character
@@ -85,6 +90,13 @@ void FontEngine::DrawText(SDL_Renderer* renderer, const char *s, const SDL_Rect&
 		//	SDL_SetClipRect(surface, NULL);
 		}
 }
+
+/// Set draw colour for the font
+void FontEngine::SetTextColour(Uint8 r, Uint8 g, Uint8 b)
+{
+	SDL_SetTextureColorMod(m_fontTexture, r, g, b);
+}
+
 
 /* SDL 1.2 versions
 void FontEngine::DrawGlyph(SDL_Surface* surface, char c, int destx, int desty)

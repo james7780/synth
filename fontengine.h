@@ -12,6 +12,7 @@ public:
 	void DrawText(SDL_Renderer* renderer, const char *s, const SDL_Rect& rect, bool clip);
 	int GetFontHeight() const { return fontCharHeight; }
 	int GetFontWidth() const { return fontCharWidth; }
+	void SetTextColour(Uint8 r, Uint8 g, Uint8 b);
 	
 private:	
 	//SDL_Surface *fontImg;
