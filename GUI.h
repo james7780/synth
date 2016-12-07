@@ -156,7 +156,7 @@ public:
 	int OnSwipe(int x, int y, int dx, int dy);
 	void Draw(const CGUIDrawContext &drawContext);		// TODO : state?
 	void SetADSR(float delay, float attack, float peak, float decay, float sustain, float release);
-	void GetADSR(float &delay, float &attack, float &peak, float &decay, float &sustain, float &release);
+	void GetADSR(float &delay, float &attack, float &peak, float &decay, float &sustain, float &release) const;
 
 	float m_adsr[6];
 };
@@ -183,7 +183,7 @@ public:
 class CGUIManager
 {
 public:
-	CGUIManager(SDL_Rect rect);
+	explicit CGUIManager(SDL_Rect rect);
 
 	CGUIControl *AddControl(int x, int y, int w, int h, CONTROLTYPE type, const char *name, const char *text);
 	CGUILabel *AddLabel(int x, int y, int w, int h, const char *name, const char *text);

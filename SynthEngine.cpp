@@ -205,18 +205,18 @@ void *midiInThreadFunc(void *data)
 	//mqd_t *p = (mqd_t *)data;
 	mqd_t mqGUI = *((mqd_t *)data);
 	
-	// state variables
-	unsigned char state = 0;
-	unsigned char channel = 0;
-	unsigned char note = 0;
-	unsigned char vel = 0;
-	unsigned char cc = 0;
-	unsigned char value = 0;
 	FILE *pfMIDIIn = fopen(MIDIDEVICE, "r");
 	if (pfMIDIIn)
 		{
 		// MIDI In thread loop
 		char buffer[MSG_MAX_SIZE];
+		// state variables
+		unsigned char state = 0;
+		unsigned char channel = 0;
+		unsigned char note = 0;
+		unsigned char vel = 0;
+		unsigned char cc = 0;
+		unsigned char value = 0;
 		while (true)
 			{
 			unsigned char c = (unsigned char)fgetc(pfMIDIIn);
@@ -408,8 +408,7 @@ int main(int argc, char *argv[])
 	if (-1 == pthread_create(&midiInThread, NULL, midiInThreadFunc, &mqGUI))
 		printf("Error: could not create MIDI device in thread!\n");
 
-	bool done = false;
-	while(!done)
+	while(true)
 		{
 		SDL_Delay(10); //(Uint32)bufferPeriodMS);
 		// Update all active voices

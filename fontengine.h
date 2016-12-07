@@ -8,12 +8,10 @@ public:
 	FontEngine(SDL_Renderer* renderer, const char* fontfile, int font_char_width, int font_char_height);
 	
 	// operations
-//	void DrawGlyph(SDL_Surface* surface, char c, int destx, int desty);
-//	void DrawText(SDL_Surface* surface, const char *s, const SDL_Rect& rect, bool clip);
 	void DrawGlyph(SDL_Renderer* renderer, char c, int destx, int desty);
 	void DrawText(SDL_Renderer* renderer, const char *s, const SDL_Rect& rect, bool clip);
-	int GetFontHeight() { return fontCharHeight; }
-	int GetFontWidth() { return fontCharWidth; }
+	int GetFontHeight() const { return fontCharHeight; }
+	int GetFontWidth() const { return fontCharWidth; }
 	
 private:	
 	//SDL_Surface *fontImg;

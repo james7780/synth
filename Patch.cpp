@@ -29,6 +29,7 @@ CPatch::~CPatch()
 void CPatch::SetName(const char *name)
 {
 	strncpy(m_name, name, PATCH_NAME_LEN);
+	m_name[PATCH_NAME_LEN - 1] = 0;
 }
 
 const char *CPatch::GetName() const

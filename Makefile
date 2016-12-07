@@ -10,13 +10,13 @@ RM = rm
 
 INCDIR = 
 #CFLAGS := -DRPI -O2 -Wall $(shell sdl-config --cflags)
-CFLAGS := -DRPI -Wall $(shell sdl-config --cflags)
+CFLAGS := -DRPI -Wall $(shell sdl2-config --cflags)
 CXXFLAGS = $(CFLAGS) -fno-exceptions -fno-rtti
 #ASFLAGS = $(CFLAGS)
 
 # note: -lrt for mqueue stuff
 LIBDIR = 
-LDFLAGS := $(shell sdl-config --libs) -lSDLmain -lSDL -lm -lstdc++ -lrt -lpthread
+LDFLAGS := $(shell sdl2-config --libs) -lSDL2main -lm -lstdc++ -lrt -lpthread
 
 all: $(TARGET)
 

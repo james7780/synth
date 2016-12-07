@@ -598,6 +598,7 @@ int main(int argc, char *argv[])
 	char mqbuffer[MSG_MAX_SIZE];
 	
 	// Open queue for sending messages to the synth engine
+	printf("Opening message queue...\n");
 	mqd_t mqEngine = mq_open(ENGINE_QUEUE_NAME, O_WRONLY | O_NONBLOCK);
 	//assert(mqEngine != (mqd_t)-1);
 	if (mqEngine == (mqd_t)-1)
@@ -618,12 +619,19 @@ int main(int argc, char *argv[])
 		}
 
 
- 	SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);
+ 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER))
+		printf("SDL_Init() failed: %s\n", SDL_GetError());
 
-	SDL_Window *window = SDL_CreateWindow("SynthGUI", 100, 100, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+	//// Use OpenGLES2
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
+	//SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
+
+	SDL_Window *window = SDL_CreateWindow("SynthGUI", 0, 0, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+	//SDL_Window *window = SDL_CreateWindow("SynthGUI", 100, 100, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
 	//SDL_Window *window = SDL_CreateWindow("SynthGUI", 0, 0, WIDTH, HEIGHT, SDL_WINDOW_FULLSCREEN);
 	if (!window)
-		printf("SDL_CreateWindow failed.\n");
+		printf("SDL_CreateWindow failed: %s\n", SDL_GetError());
 		
 	SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
 	if (!renderer)

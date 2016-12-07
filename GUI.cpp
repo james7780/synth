@@ -733,7 +733,7 @@ void CGUIEnvelope::SetADSR(float delay, float attack, float peak, float decay, f
 }
 
 /// Get the envelope ADSR values
-void CGUIEnvelope::GetADSR(float &delay, float &attack, float &peak, float &decay, float &sustain, float &release)
+void CGUIEnvelope::GetADSR(float &delay, float &attack, float &peak, float &decay, float &sustain, float &release) const
 {
 	delay = m_adsr[0];
 	attack = m_adsr[1];
@@ -816,13 +816,14 @@ void CGUIOptionList::SetSelectedIndex(short index)
 ///////////////////////////////////////////////////////////////////////
 CGUIManager::CGUIManager(SDL_Rect rect)
 	:	m_drawContext(NULL, NULL),
-		m_rect(rect)
+		m_rect(rect),
+		m_margin(0),
+		m_dragStartX(0),
+		m_dragStartY(0),
+		m_dragLastX(0),
+		m_dragLastY(0),
+		m_controlChanged(false)
 {
-	m_dragStartX = 0;
-	m_dragStartY = 0;
-	m_dragLastX = 0;
-	m_dragLastY = 0;
-	m_controlChanged = false;
 }
 
 /// Add a new control to the "scene"
