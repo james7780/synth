@@ -3,36 +3,41 @@ Raspberry Pi Softsynth Manual
 1. Overview
 
 	Software synth on Raspberry Pi intended for "embedded" use (eg: to make an actual hardware synthesiser).
- 	Bare metal (or at least minimal fast-boot Linux OS).
+ 	Developed on Raspbian using C++ and SDL2. Hopefully in future will run on minimal fast-boot Linux OS.
 
 2. Features
 
 	To sound good: 
 	- 16 notes polyphonic (32 oscillators)
 	- Multi-timbral (2 oscillators per played note)
-	- DAPDSR envelopea (delay/attack/peak/decay/sustain/release)
+	- DAPDSR envelopes (delay/attack/peak/decay/sustain/release)
 	- Various oscillator waveforms
 		+ SINE/SQUARE/SAW/TRI/NOISE/CUSTOM
-		+ "phase distorting" the waveform ("variable duty cycle")
+		+ Adjustable duty cycle ("phase distortion")
+		+ Detune
 	- LFO and modulation
 		- Various LFO waveforms
-		- Route LFO to volume, pitch, filter, PWM		- Effects on individual notes:
-		- Lowpass filter
+		- Route LFO to volume, pitch, filter, PWM
+	- Effects on individual notes:
+		- Lowpass filter (TODO - 2 or 3 types)
 	- Effects on master output
 		- Compression
 		- Reverb / delay
 	- [TODO] Sample playback
 		- For audio tracks
+	- [TODO] Custom waveform editor
 
 	Control:
-	- Triggering notes
+	- Triggering notes (from MIDI device)
 		- Handle MIDI note on / note off messages
+		- MIDI note velocity
 		- Handle "running" note on/off messages (?)
 	- Modulation
 		- MIDI Pitch bend messages
 		- MIDI Mod wheel messages
 	- Tweaking parameters
-		- MIDI control messages
+		- Handle MIDI control messages from MIDI controller
+		- Handle MIDI control messages from GUI process
 		- Use de-facto standard message numbers
 	- Selecting patches
 		- MIDI patch select messages
@@ -59,12 +64,14 @@ Raspberry Pi Softsynth Manual
 
 3. Design/Implementation:
 
-- Synth engine (C++) running in one process 
-- GUI (python) running in another process
+- Synth engine "synth" running in one process
+	- Processes messages and generates audio output
+	- Audio mixing/output running in separate thread
+- Synth GUI "synthgui" running in another process
 - Sequencer etc running in other processes/cores
-- UI and synth / sequencer talk to each other using IPC (mqueue)
+- GUI and synth / sequencer talk to each other using IPC (mqueue)
 - OO C++
-- Portability
+- Portability?
 
 
 CWaveSynth Object:
@@ -177,8 +184,8 @@ The Synth GUI emulates the "front panel" for the soft synth:
 
 	SYSTEM PAGE
 	- MIDI config
+		- Map MIDI channel # to keyboard split
 		- Mapping of midi controller id's to synth settings
-	- 
 
 	[TODO] SEQUENCER PAGE
 	- 8 Tracks
@@ -190,23 +197,37 @@ The Synth GUI emulates the "front panel" for the soft synth:
 
 
 
-Envelope Editor Control:
+Envelope Editor Popup Control:
 
 +--------+---+------------+----+------+
-|       /:\  :            :    :      | 
-|      / : \ :            :    :      |
-|     /  :  \:            :    :      |
-|    /   :   +----\ \-----+    :      |
-|   /    :   :            :\   :      |
-|  /     :   :            : \  :      |
-| /      :   :            :  \ :      |
-|/       :   :            :   \:      |
-+--------+---+------------+----+------+
- D: [          ] 100 
- A: [          ] 200ms
- P: [          ] 
- D: [          ] 100 
- S: [          ] 80%
- R: [          ] 1000
+|       /:\  :            :    :      +-+ 
+|      / : \ :            :    :      | |
+|     /  :  \:            :    :      | |
+|    /   :   +----\ \-----+    :      | |
+|   /    :   :            :\   :      | |
+|  /     :   :            : \  :      | |
+| /      :   :            :  \ :      | |
+|/       :   :            :   \:      | |
++-+------+---+------------+----+------+ |
+  +-------------------------------------+
+
+ D: [|         ] 0ms      (logarithmic - finer control over lower values)
+ A: [      |   ] 200ms    (logarithmic)
+ P: [         |] 100%
+ D: [    |     ] 100ms    (logarithmic) 
+ S: [        | ] 80%
+ R: [       |  ] 500ms    (logarithmic)
 
 Adjust DAPDSR sliders for desired envelope
+
+
+Slider Popup Control:
+
++-------------------------------------+
+|                      |              +-+
+|                      |              | |
++-------------------------------------+ |
+| Value = 63                          | |
++-+-----------------------------------+ |
+  +-------------------------------------+
+
