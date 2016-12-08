@@ -134,8 +134,8 @@ Synth GUI Application:
 
 The Synth GUI emulates the "front panel" for the soft synth:
 
-	MAIN PAGE: 
-	- Current patch settings
+	GUI MAIN PAGE: 
+	- Allows you to edit the current patch settings:
 		- Patch name
 		- Patch relative volume
 		- Patch OSC1 settings
@@ -182,7 +182,7 @@ The Synth GUI emulates the "front panel" for the soft synth:
 	PATCH SELECT PAGE
 	- Choose patch from a list/array
 
-	SYSTEM PAGE
+	[TODO] SYSTEM PAGE
 	- MIDI config
 		- Map MIDI channel # to keyboard split
 		- Mapping of midi controller id's to synth settings
