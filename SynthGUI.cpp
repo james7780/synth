@@ -8,6 +8,7 @@
 #include <string>
 #include <math.h>
 #include <assert.h>
+#include <linux/input.h>
 
 #include "common.h"
 
@@ -595,6 +596,55 @@ static void RequestPatchData(mqd_t mq)
 	// Synth engine will send DT1 sysex data
 }
 
+int fdTouch = 0;
+	
+/// Open RPi offical touchscreen divice for touch events
+static int Touch_Open()
+{
+	fdTouch = open("/dev/input/event2", O_RDONLY);
+	if (fdTouch)
+		{
+		char name[256] = "Unknown";
+		ioctl(fdTouch, EVIOCGNAME(sizeof(name)), name);
+		printf("Touch device name: %s\n", name);	
+		}
+		
+	return fdTouch;
+}
+
+/// Read touch info
+// struct input_event:
+//    __u16 type     (eg:EV_SYN, EV_REL, EV_ABS)
+//    __u16 code     (eg: REL_X, REL_Y)
+//    __s32 value    (the X/Y etc value)
+// Touch down: type = EV_KEY and code = BTN_TOUCH and value = 1
+// Touch up: type = EV_KEY and code = BTN_TOUCH and value = 0
+// Touch X: type = EV_ABS, code = 0, value > -1 = X
+// Touch Y: type = EV_ABS, code = 1, value > -1 = Y
+
+struct input_event touchEvents[64];
+static void Touch_Update()
+{
+	if (fdTouch)
+		{
+		// Note: reading events here will cause SDL events to not work
+		// (uses the same events interface?)
+		int bytes = read(fdTouch, touchEvents, sizeof(struct input_event)*64);
+		for (int i = 0; i < (bytes / sizeof(struct input_event)); i++)
+			{
+			printf("ET: %d   EC:  %d   EV: %d\n", touchEvents[i].type, touchEvents[i].code, touchEvents[i].value);
+			
+			// Push mouse events to the SDL event queue?
+			// SDL_Event sdlEvent;
+			// sdlEvent.type = SDL_MOUSEBUTTONDOWN / SDL_MOUSEBUTTONUP;
+			// sdlEvent.button.x = lastX;
+			// sdlEvent.button.y = lastY;
+			// SDL_PushEvent(&sdlEvent);
+			}
+		}
+	
+}
+
 int main(int argc, char *argv[])
 {
 	// IPC message queue stuff
@@ -605,13 +655,19 @@ int main(int argc, char *argv[])
 	mqd_t mqEngine = mq_open(ENGINE_QUEUE_NAME, O_WRONLY | O_NONBLOCK);
 	//assert(mqEngine != (mqd_t)-1);
 	if (mqEngine == (mqd_t)-1)
+		{
+		printf("Could not open mqEngine message queue.\nMake sure synth engine is running.\n");
 		return -1;
+		}
 
 	// Open queue for reading message from the synth engine
 	mqd_t mqGUI = mq_open(GUI_QUEUE_NAME, O_RDONLY | O_NONBLOCK);
 	//assert(mqGUI != (mqd_t)-1);
 	if (mqEngine == (mqd_t)-1)
+		{
+		printf("Could not open mqGUI message queue.\n");
 		return -1;
+		}
 		
 	// Flush the incoming message queue
 	printf("SG: Flushing incoming message queue\n");
@@ -622,7 +678,7 @@ int main(int argc, char *argv[])
 		}
 
 
- 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER))
+ 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_EVENTS))
 		printf("SDL_Init() failed: %s\n", SDL_GetError());
 
 	//// Use OpenGLES2
@@ -663,6 +719,9 @@ int main(int argc, char *argv[])
 
 	// Ask the synth engine for current patch info
 	RequestPatchData(mqEngine);
+
+// See openTouchScreen() etc above
+Touch_Open();
 
 	SDL_Event event;
 	bool done = false;
@@ -804,6 +863,10 @@ int main(int argc, char *argv[])
 						}
 					}
 					break;
+				//case SDL_FINGERDOWN :
+					//printf("Finger down: %d, %d\n", event.tfinger.x, event.tfinger.y);
+					//gm.OnMouseDown(event.tfinger.x, event.tfinger.y);
+					//break;
 				}	// end switch
 			}	// wend event
 
@@ -834,6 +897,8 @@ int main(int argc, char *argv[])
 			UpdateMainPageFromPatch(gm, workPatch);
 			}
 
+//Touch_Update();
+
 		//SDL_Rect rect;
 		//rect.x = 50;
 		//rect.y = 50;
@@ -863,5 +928,7 @@ int main(int argc, char *argv[])
 	mq_close(mqGUI);
 	//mq_unlink(MQUEUE_NAME);    // only server (creator) has to do this
 
+	close(fdTouch);
+	
 	return 0;
 }
