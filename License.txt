@@ -1,0 +1,5 @@
+This Synth/SynthEngine is copyright James Higgs 2016.
+
+The source code and executables are free to use for non-commercial applications.
+
+Contact james7780@yahoo.com for commercial licensing agreement.
