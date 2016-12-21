@@ -57,6 +57,97 @@ static void FlushMessageQueue(mqd_t mq)
 		}
 }
 
+int fdTouch = 0;
+	
+/// Open RPi offical touchscreen divice for touch events
+static int Touch_Open()
+{
+	// Enumerate to find the correct event input
+	char devPath[64] = "/dev/input/event0";
+	for (int i = 0; i < 4; i++)
+		{
+		devPath[strlen(devPath) - 1] = 48 + i;   // '0' to '3'
+		int fd = open(devPath, O_RDONLY | O_NONBLOCK);
+		if (fd)
+			{
+			char name[256] = "Unknown";
+			ioctl(fd, EVIOCGNAME(sizeof(name)), name);
+			if (0 == strncmp(name, "FT5406", 6))
+				{
+				printf("Touch device name: %s\n", name);
+				fdTouch = fd;
+				break;
+				}
+			else
+				close(fd);
+			}
+		}
+	
+	if (0 == fdTouch)
+		printf("Error: Touch device FT5406 not found!\n");
+		
+	return fdTouch;
+}
+
+/// Read touch info
+// struct input_event:
+//    __u16 type     (eg:EV_SYN, EV_REL, EV_ABS)
+//    __u16 code     (eg: REL_X, REL_Y)
+//    __s32 value    (the X/Y etc value)
+// Touch down: type = EV_KEY and code = BTN_TOUCH and value = 1
+// Touch up: type = EV_KEY and code = BTN_TOUCH and value = 0
+// Touch X: type = EV_ABS, code = 0, value > -1 = X
+// Touch Y: type = EV_ABS, code = 1, value > -1 = Y
+
+struct input_event touchEvents[64];
+int touchX = 0;
+int touchY = 0;
+void Touch_Update()
+{
+	if (fdTouch)
+		{
+		// Note: reading events here will cause SDL events to not work
+		// (uses the same events interface?)
+		int bytes = read(fdTouch, touchEvents, sizeof(struct input_event)*64);
+		if (bytes > 0)
+			{
+			for (unsigned int i = 0; i < (bytes / sizeof(struct input_event)); i++)
+				{
+				__u16 type = touchEvents[i].type;
+				__u16 code = touchEvents[i].code;
+				__s32 value = touchEvents[i].value;
+				printf("ET: %d   EC:  %d   EV: %d\n", type, code, value);
+				
+				// Push mouse events to the SDL event queue?
+				// SDL_Event sdlEvent;
+				// sdlEvent.type = SDL_MOUSEBUTTONDOWN / SDL_MOUSEBUTTONUP;
+				// sdlEvent.button.x = lastX;
+				// sdlEvent.button.y = lastY;
+				// SDL_PushEvent(&sdlEvent);
+				if (EV_KEY == type && BTN_TOUCH == code)
+					{
+					if (1 == value || 0 == value)	// touch down/up
+						{
+						SDL_Event sdlEvent;
+						sdlEvent.type = (1 == value) ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP;
+						sdlEvent.button.x = touchX;
+						sdlEvent.button.y = touchY;
+						SDL_PushEvent(&sdlEvent);	
+						}
+					}
+				else if (EV_ABS == type)
+					{
+					if (0 == code)
+						touchX = value;
+					else if (1 == code)
+						touchY = value;
+					}
+				}
+			}
+		}
+	
+}
+
 /// Patch Select screen
 /// @return -1 if cnacelled, else index of patch selected
 int DoPatchSelect(SDL_Renderer *renderer, mqd_t mqEngine, mqd_t mqGUI)
@@ -135,6 +226,7 @@ int DoPatchSelect(SDL_Renderer *renderer, mqd_t mqEngine, mqd_t mqGUI)
 	bool done = false;
 	while(!done)
 		{
+		Touch_Update();			
 		while (SDL_PollEvent(&event))
 			{
 			switch (event.type)
@@ -596,54 +688,6 @@ static void RequestPatchData(mqd_t mq)
 	// Synth engine will send DT1 sysex data
 }
 
-int fdTouch = 0;
-	
-/// Open RPi offical touchscreen divice for touch events
-static int Touch_Open()
-{
-	fdTouch = open("/dev/input/event2", O_RDONLY);
-	if (fdTouch)
-		{
-		char name[256] = "Unknown";
-		ioctl(fdTouch, EVIOCGNAME(sizeof(name)), name);
-		printf("Touch device name: %s\n", name);	
-		}
-		
-	return fdTouch;
-}
-
-/// Read touch info
-// struct input_event:
-//    __u16 type     (eg:EV_SYN, EV_REL, EV_ABS)
-//    __u16 code     (eg: REL_X, REL_Y)
-//    __s32 value    (the X/Y etc value)
-// Touch down: type = EV_KEY and code = BTN_TOUCH and value = 1
-// Touch up: type = EV_KEY and code = BTN_TOUCH and value = 0
-// Touch X: type = EV_ABS, code = 0, value > -1 = X
-// Touch Y: type = EV_ABS, code = 1, value > -1 = Y
-
-struct input_event touchEvents[64];
-static void Touch_Update()
-{
-	if (fdTouch)
-		{
-		// Note: reading events here will cause SDL events to not work
-		// (uses the same events interface?)
-		int bytes = read(fdTouch, touchEvents, sizeof(struct input_event)*64);
-		for (int i = 0; i < (bytes / sizeof(struct input_event)); i++)
-			{
-			printf("ET: %d   EC:  %d   EV: %d\n", touchEvents[i].type, touchEvents[i].code, touchEvents[i].value);
-			
-			// Push mouse events to the SDL event queue?
-			// SDL_Event sdlEvent;
-			// sdlEvent.type = SDL_MOUSEBUTTONDOWN / SDL_MOUSEBUTTONUP;
-			// sdlEvent.button.x = lastX;
-			// sdlEvent.button.y = lastY;
-			// SDL_PushEvent(&sdlEvent);
-			}
-		}
-	
-}
 
 int main(int argc, char *argv[])
 {
@@ -727,6 +771,8 @@ Touch_Open();
 	bool done = false;
 	while(!done)
 		{
+Touch_Update();
+			
 		while (SDL_PollEvent(&event))
 			{
 			switch (event.type)

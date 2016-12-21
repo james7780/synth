@@ -9,6 +9,8 @@
 #include "fontengine.h"
 #include "Envelope.h"
 
+extern void Touch_Update();			// in SynthGUI.cpp
+
 /// CGUIControl - Base class for controls
 CGUIControl::CGUIControl(int x, int y, int width, int height, unsigned short type, const char *name, const char *text)
 {
@@ -177,6 +179,8 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 	bool done = false;
 	while(!done)
 		{
+		Touch_Update();
+			
 		while (SDL_PollEvent(&event))
 			{
 			switch (event.type)
@@ -372,6 +376,8 @@ int CGUISlider::EditSlider(const CGUIDrawContext &drawContext)
 	bool done = false;
 	while(!done)
 		{
+		Touch_Update();	
+			
 		while (SDL_PollEvent(&event))
 			{
 			switch (event.type)
@@ -604,6 +610,8 @@ int CGUIEnvelope::EditADSR(const CGUIDrawContext &drawContext)
 	bool done = false;
 	while(!done)
 		{
+		Touch_Update();	
+		
 		while (SDL_PollEvent(&event))
 			{
 			switch (event.type)
