@@ -38,8 +38,12 @@ std::string wfNames[] = {
 	"NOISE"
 };
 
-// Curent patch object
+// Curent patch object (for updating main page settings)
 CPatch workPatch;
+struct globalSynthSettings_t {
+	float filterCutoff;				// 0.0 to 1.0
+	float reverbDepth;				// 0.0 to 1.0
+} globalSynthSettings;
 
 static void PostMessage(mqd_t mq, char *buffer, int length)
 {
@@ -118,29 +122,43 @@ void Touch_Update()
 				__s32 value = touchEvents[i].value;
 				printf("ET: %d   EC:  %d   EV: %d\n", type, code, value);
 				
-				// Push mouse events to the SDL event queue?
-				// SDL_Event sdlEvent;
-				// sdlEvent.type = SDL_MOUSEBUTTONDOWN / SDL_MOUSEBUTTONUP;
-				// sdlEvent.button.x = lastX;
-				// sdlEvent.button.y = lastY;
-				// SDL_PushEvent(&sdlEvent);
+				// Push touch events to SDL event queue, as mouse events
 				if (EV_KEY == type && BTN_TOUCH == code)
 					{
 					if (1 == value || 0 == value)	// touch down/up
 						{
+						// Send touch up/down event to SDL2
 						SDL_Event sdlEvent;
 						sdlEvent.type = (1 == value) ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP;
-						sdlEvent.button.x = touchX;
+						sdlEvent.button.x = touchX;	// use "current" mouse x/y set by EV_ABS code 53/54 below
 						sdlEvent.button.y = touchY;
 						SDL_PushEvent(&sdlEvent);	
 						}
 					}
 				else if (EV_ABS == type)
 					{
-					if (0 == code)
+					if (53 == code)							// mouse down x
+						{
 						touchX = value;
-					else if (1 == code)
+						}
+					else if (54 == code)					// mouse down y
+						{
 						touchY = value;
+						}							
+					if (0 == code)							// mouse/touch move x
+						{
+						touchX = value;
+						}
+					else if (1 == code)						// mouse/touch move y
+						{
+						touchY = value;
+						// Send mouse move event to SDL2
+						SDL_Event sdlEvent;
+						sdlEvent.type = SDL_MOUSEMOTION;
+						sdlEvent.button.x = touchX;
+						sdlEvent.button.y = touchY;
+						SDL_PushEvent(&sdlEvent);
+						}
 					}
 				}
 			}
@@ -475,6 +493,13 @@ static void UpdateMainPageFromPatch(CGUIManager &gm, const CPatch &patch)
 
 	control = gm.GetControl("LFODepthSlider");
 	((CGUISlider *)control)->Init(patch.m_LFODepth, 0.0f, 1.0f, false);
+
+	// Global settings
+	control = gm.GetControl("FilterCutoff");
+	((CGUISlider *)control)->Init(globalSynthSettings.filterCutoff, 0.0f, 1.0f, false);
+
+	control = gm.GetControl("RvbDepth");
+	((CGUISlider *)control)->Init(globalSynthSettings.reverbDepth, 0.0f, 1.0f, false);
 }
 
 /// Update the patch data from the controls
@@ -612,6 +637,10 @@ static void UpdatePatchFromCC(CPatch &patch, char cc, char value)
 		case 71 :		// Resonance
 			break;
 		case 74 :		// Cutoff
+			globalSynthSettings.filterCutoff = UnpackValue(value, 0x7F);
+			break;
+		case 91 :		// Reverb Depth
+			globalSynthSettings.reverbDepth = UnpackValue(value, 0x7F);
 			break;
 		}	// end switch
 			
@@ -764,6 +793,10 @@ int main(int argc, char *argv[])
 	// Ask the synth engine for current patch info
 	RequestPatchData(mqEngine);
 
+	// Init global synth settings
+	globalSynthSettings.filterCutoff = 64;
+	globalSynthSettings.reverbDepth = 0;
+
 // See openTouchScreen() etc above
 Touch_Open();
 
@@ -818,16 +851,18 @@ Touch_Update();
 						if (0 == strcmp(control->m_name, "FilterCutoff"))
 							{
 							// Use "filter cutoff" CC message 74
-							unsigned char value = (unsigned char)(((CGUISlider *)control)->m_value * 0x7F);
-							char outBuffer[MSG_MAX_SIZE] = { 0xB0, 74, value };
+							globalSynthSettings.filterCutoff = ((CGUISlider *)control)->m_value;
+							unsigned char value = (unsigned char)(globalSynthSettings.filterCutoff * 0x7F);
+							char outBuffer[4] = { 0xB0, 74, value };
 							PostMessage(mqEngine, outBuffer, 3);
 							gm.m_controlChanged = false;
 							}
 						else if (0 == strcmp(control->m_name, "RvbDepth"))
 							{
 							// Use "Reverb Send" CC message 91
-							unsigned char value = (unsigned char)(((CGUISlider *)control)->m_value * 0x7F);
-							char outBuffer[MSG_MAX_SIZE] = { 0xB0, 91, value };
+							globalSynthSettings.reverbDepth = ((CGUISlider *)control)->m_value;
+							unsigned char value = (unsigned char)(globalSynthSettings.reverbDepth * 0x7F);
+							char outBuffer[4] = { 0xB0, 91, value };
 							PostMessage(mqEngine, outBuffer, 3);
 							gm.m_controlChanged = false;
 							}
