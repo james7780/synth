@@ -2,7 +2,8 @@
 
 TARGET = synthgui
 OBJS = SynthGUI.o GUI.o fontengine.o \
-	Patch.o Oscillator.o Modulator.o Envelope.o Messages.o
+	Patch.o Oscillator.o Modulator.o Envelope.o \
+    Messages.o TouchScreen.o
 
 CC = g++
 RM = rm

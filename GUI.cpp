@@ -1,17 +1,18 @@
 /// GUI class for SDL projects
+/// Copyright James Higgs 2016
 
 // GUI TODO:
 // 1. Colours in a "theme" file
 
-
-//#include <SDL2/SDL.h>
 #include "GUI.h"
 #include "fontengine.h"
 #include "Envelope.h"
 
-extern void Touch_Update();			// in SynthGUI.cpp
+extern void Touch_Update();			// in TouchScreen.cpp
 
+//////////////////////////////////////////////////////////////////////////////
 /// CGUIControl - Base class for controls
+//////////////////////////////////////////////////////////////////////////////
 CGUIControl::CGUIControl(int x, int y, int width, int height, unsigned short type, const char *name, const char *text)
 {
 	m_rect.x = x;
@@ -74,13 +75,12 @@ void CGUIControl::DrawText(const CGUIDrawContext &drawContext, int x, int y, con
 }
 
 
-
+//////////////////////////////////////////////////////////////////////////////
 /// CGUILabel - Text label control
-
+//////////////////////////////////////////////////////////////////////////////
 CGUILabel::CGUILabel(int x, int y, int width, int height, const char *name, const char *text)
 	:	CGUIControl(x, y, width, height, CT_LABEL, name, text)
 {
-
 }
 
 void CGUILabel::Draw(const CGUIDrawContext &drawContext)
@@ -89,13 +89,12 @@ void CGUILabel::Draw(const CGUIDrawContext &drawContext)
 	DrawText(drawContext, 0, 0, m_text);
 }
 
-
+//////////////////////////////////////////////////////////////////////////////
 /// CGUIEdit - Text editcontrol
-
+//////////////////////////////////////////////////////////////////////////////
 CGUIEdit::CGUIEdit(int x, int y, int width, int height, const char *name, const char *text)
 	:	CGUIControl(x, y, width, height, CT_EDIT, name, text)
 {
-
 }
 
 int CGUIEdit::OnClick(const CGUIDrawContext &drawContext, int x, int y)
@@ -123,11 +122,7 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 {
 	// Virtual keyboard character map
 	const char charMap[41] = "1234567890QWERTYUIOPASDFGHJKL^ZXCVBNM []";
-	
-	// We work with a local copy of the text value
-	char text[256];
-	strcpy(text, m_text);
-	
+
 	// LOad the virtual keyboard bitmaps
 	SDL_Surface *imgKeys = SDL_LoadBMP("vk_medium.bmp");
 	SDL_Surface *imgKeysHilite = SDL_LoadBMP("vk_medium_hilite.bmp");
@@ -139,25 +134,21 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 
 	SDL_Renderer *renderer = drawContext.m_renderer;
 	SDL_Texture *txKeys = SDL_CreateTextureFromSurface(renderer, imgKeys);
-	//SDL_Texture *txKeysHilite = SDL_CreateTextureFromSurface(renderer, imgKeysHilite);
+	SDL_Texture *txKeysHilite = SDL_CreateTextureFromSurface(renderer, imgKeysHilite);
 	
 	// Setup the popup layout
 	int parentWidth, parentHeight;
 	SDL_RenderGetLogicalSize(renderer, &parentWidth, &parentHeight);
 
 	const int MARGIN = 8;
-	const int CW = 60;
-	const int CH = 17;
+	const int CW = 64;          // control (button) width
+	const int CH = 19;
 	const int POPUPWIDTH = parentWidth - 2 * MARGIN;
 	const int POPUPHEIGHT = POPUPWIDTH / 2;
 
-	//int x = std::min(m_rect.x, parentWidth - POPUPWIDTH);
-	//int y = std::min(m_rect.y, parentHeight - POPUPHEIGHT);
 	int x0 = std::min(m_rect.x, parentWidth - POPUPWIDTH);
 	int y0 = std::min(m_rect.y, parentHeight - POPUPHEIGHT);
-	SDL_Rect popupRect;
-	popupRect.x = x0; popupRect.y = y0; 
-	popupRect.w = POPUPWIDTH; popupRect.h = POPUPHEIGHT;
+	SDL_Rect popupRect = { x0, y0, POPUPWIDTH, POPUPHEIGHT };
 
 	// Create a GUI control manager for our popup "layout"
 	CGUIManager gmPopup(popupRect);
@@ -166,8 +157,10 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 //	gmPopup.m_drawContext.SetForeColour(255, 255, 255, 0);
 	gmPopup.m_drawContext.SetBackColour(0, 0, 0, 255);
 
-	// Create Done button
-	CGUIButton *doneButton = gmPopup.AddButton(x0 + POPUPWIDTH - MARGIN - CW, y0 + MARGIN, CW, CH, "doneButton", "Done");
+	// Create OK and Cancel buttons
+    int xRight = popupRect.x + popupRect.w;
+	CGUIButton *okButton = gmPopup.AddButton(xRight - (MARGIN + CW) * 2, y0 + MARGIN, CW, CH, "doneButton", "Done");
+	CGUIButton *cancelButton = gmPopup.AddButton(xRight - (MARGIN + CW), y0 + MARGIN, CW, CH, "doneButton", "Done");
 
 	SDL_Rect kbRect = popupRect;
 	kbRect.x += MARGIN;
@@ -175,8 +168,21 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 	kbRect.h -= MARGIN * 3 + 32;
 	kbRect.w -= (MARGIN * 2);
 
+  	// We work with a local copy of the text value
+	char text[256];
+	strcpy(text, m_text);
+
+    // For highlighting pressed keys
+    int highlightCount = 0;
+    int highlightIndex = 0;
+
+    // These must match up with the keyboard images
+    const int KBROWS = 4;
+    const int KBCOLS = 10;
+    
 	SDL_Event event;
 	bool done = false;
+    bool cancel = false;
 	while(!done)
 		{
 		Touch_Update();
@@ -188,7 +194,10 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 				case SDL_KEYDOWN :
 					// Check for ESC pressed
 					if (SDLK_ESCAPE == event.key.keysym.sym)
+                        {
 						done = true;
+                        cancel = true;
+                        }
 					break;
 				case SDL_MOUSEMOTION :
 					//gmPopup.OnMouseMove(event.button.x, event.button.y);
@@ -201,10 +210,10 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 					int y = event.button.y - kbRect.y;
 					if (x > 0 && x < kbRect.w && y > 0 && y < kbRect.h)
 						{
-						const int cx = kbRect.w / 10;
-						const int cy = kbRect.h / 4;
-						int i = (y / cy) * 10 + (x / cx);
-						if (i >= 0 && i < 40)
+						const int cx = kbRect.w / KBCOLS;
+						const int cy = kbRect.h / KBROWS;
+						int i = (y / cy) * KBCOLS + (x / cx);
+						if (i >= 0 && i < (KBROWS * KBCOLS))
 							{
 							char c = charMap[i];
 							if ('^' == c)
@@ -220,6 +229,9 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 								int len = strlen(text);
 								text[len] = c;
 								text[len+1] = 0;
+                                // Highlight pressed key
+                                highlightIndex = i;
+                                highlightCount = 25;        // 250ms at least?
 								}
 								
 							}
@@ -231,8 +243,15 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 					{
 					CGUIControl *control = gmPopup.OnMouseUp(event.button.x, event.button.y);
 					// If done button clicked, then close
-					if (control == doneButton)
+					if (control == okButton)
+                        {
 						done = true;
+                        }
+                    else if (control == cancelButton)
+                        {
+                        done = true;
+                        cancel = true;
+                        }
 					}
 					break;
 				}	// end switch
@@ -243,9 +262,27 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 
 		// Draw keyboard
 		SDL_RenderDrawRect(renderer, &kbRect);
-
 		SDL_Rect srcRect = { 0, 0, imgKeys->w, imgKeys->h };
 		SDL_RenderCopy(renderer, txKeys, &srcRect, &kbRect);
+        
+        // Draw highylighted (pressed) key
+        if (highLightCount > 0)
+            {
+            int xc = highlightIndex % KBCOLS;
+            int yc = highlightIndex / KBCOLS;
+            int srcW = imgKeys->w / KBCOLS;
+            int srcH = imgKeys->h / KBROWS;
+            int srcX = xc * srcW;
+            int srcY = yc * srcH);
+            int destW = kbRect.w / KBCOLS;
+            int destH = kbRect.h / KBROWS;
+            int destX = kbRect.x + xc * destW;
+            int destY = kbRect.y + yc * destH);
+            SDL_Rect srcHLRect = { srcX, srcY, srcW, srcH };
+            SDL_Rect destHLRect = { destX, destY, destW, destH };
+            SDL_RenderCopy(renderer, txKeysHilite, &srcHLRect, &destHLRect);
+            highLightCount--;
+            }
 
 		// Draw text
 		SDL_Rect textRect = popupRect;
@@ -260,24 +297,24 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 		SDL_Delay(10);
 		}	// wend
 
-	// Update the parent text control's value 
-	strcpy(m_text, text);
+	// Update the parent text control's value
+    if (!cancel)
+        strcpy(m_text, text);
 	
 	return 0;
 }
 
-
+//////////////////////////////////////////////////////////////////////////////
 /// CGUIButton - Button control
-
+//////////////////////////////////////////////////////////////////////////////
 CGUIButton::CGUIButton(int x, int y, int width, int height, const char *name, const char *text)
 	:	CGUIControl(x, y, width, height, CT_BUTTON, name, text)
 {
-
 }
 
 int CGUIButton::OnClick(const CGUIDrawContext &drawContext, int x, int y)
 {
-	// TODO
+	// TODO - "flash" button
 	return 0;
 }
 
@@ -300,9 +337,9 @@ void CGUIButton::Draw(const CGUIDrawContext &drawContext)
 	DrawFrame(drawContext);
 }
 
-
+//////////////////////////////////////////////////////////////////////////////
 /// CGUISlider - Slider control
-
+//////////////////////////////////////////////////////////////////////////////
 CGUISlider::CGUISlider(int x, int y, int width, int height, const char *name, float minVal, float maxVal, bool logScale)
 	:	CGUIControl(x, y, width, height, CT_SLIDER, name, NULL),
 		m_value(0.5f),
@@ -333,7 +370,7 @@ int CGUISlider::EditSlider(const CGUIDrawContext &drawContext)
 	const int SLIDERWIDTH = 320;
 	const int SLIDERHEIGHT = SLIDERWIDTH / 8;
 	const int CW = 60;
-	const int CH = 20;
+	const int CH = 24;
 	const int MARGIN = 4;
 	const int POPUPWIDTH = SLIDERWIDTH + 2 * MARGIN;
 	const int POPUPHEIGHT = SLIDERHEIGHT + CH + 3 * MARGIN;
@@ -360,7 +397,6 @@ int CGUISlider::EditSlider(const CGUIDrawContext &drawContext)
 	slider->Init(this->m_value, this->m_minVal, this->m_maxVal, this->m_logScale);
 
 	// Calc x pos of "original value" line
-	//int originalX = x1 + (int)(SLIDERWIDTH * ((m_value - m_minVal) / (m_maxVal - m_minVal)));
 	int originalX = x1 + (SLIDERWIDTH * GetPosition()) / 100;
 
 	// create label
@@ -445,8 +481,6 @@ int CGUISlider::OnClick(const CGUIDrawContext &drawContext, int x, int y)
 	// in BIG SLIDER window
 	if (0 == strcmp(m_name, "popupSlider"))
 		{
-		//float k = (float)x / m_rect.w;
-		//m_value = m_minVal + k * (m_maxVal - m_minVal);
         m_value = GetValue((x * 100) / m_rect.w);               // GetValue() wants range 0 to 100
 		return 0;
 		}
@@ -459,8 +493,6 @@ int CGUISlider::OnClick(const CGUIDrawContext &drawContext, int x, int y)
 /// @paran[in] x        x offset relative to left edge of the slider
 int CGUISlider::OnSwipe(int x, int y, int dx, int dy)
 {
-	//float k = (float)x / m_rect.w;
-	//m_value = m_minVal + k * (m_maxVal - m_minVal);
     m_value = GetValue((x * 100) / m_rect.w);               // GetValue() wants range 0 to 100
 	return 0;
 }
@@ -469,8 +501,6 @@ void CGUISlider::Draw(const CGUIDrawContext &drawContext)
 {
 	DrawBGFill(drawContext);
 	DrawFrame(drawContext);
-	//float k = (m_value - m_minVal) / (m_maxVal - m_minVal);
-	//int x = m_rect.x + (int)(m_rect.w * k);
     int pos = GetPosition();        // from 0 to 100
     int x = m_rect.x + (pos * m_rect.w) / 100;
 	SDL_Colour colour = { 255, 255, 255, 0 };
@@ -534,8 +564,9 @@ int CGUISlider::GetPosition()
   return pos;
 }
 
+//////////////////////////////////////////////////////////////////////////////
 /// CGUIEnvelope - Envelope control
-
+//////////////////////////////////////////////////////////////////////////////
 CGUIEnvelope::CGUIEnvelope(int x, int y, int width, int height, const char *name, const char *text)
 	:	CGUIControl(x, y, width, height, CT_ENVELOPE, name, text)
 {
@@ -554,7 +585,7 @@ int CGUIEnvelope::EditADSR(const CGUIDrawContext &drawContext)
 {
 	// Setup the popup layout
 	const int CW = 80;
-	const int CH = 20;
+	const int CH = 24;
 	const int MARGIN = 4;
 	const int POPUPWIDTH = 4 * CW + 5 * MARGIN;
 	const int POPUPHEIGHT = 8 * CH + 6 * MARGIN;
@@ -663,6 +694,7 @@ int CGUIEnvelope::EditADSR(const CGUIDrawContext &drawContext)
 		r2.h -= (MARGIN * 6 + CH * 4);
 		r2.w -= (MARGIN * 2);
 		SDL_RenderDrawRect(renderer, &r2);
+        SDL_RenderSetClipRect(renderer, &r2);
 		const int susWidth = 60;
 		float xtotal = (m_adsr[0] + m_adsr[1] + m_adsr[3] + m_adsr[5]);
 		float xscale = (r2.w - susWidth) / xtotal; 
@@ -679,6 +711,7 @@ int CGUIEnvelope::EditADSR(const CGUIDrawContext &drawContext)
 		SDL_RenderDrawLine(renderer, x1, yp, x2, ys);
 		SDL_RenderDrawLine(renderer, x2, ys, x3, ys);
 		SDL_RenderDrawLine(renderer, x3, ys, x4, y2);
+        SDL_RenderSetClipRect(renderer, NULL);
 
 		//SDL_Flip(screen);
 		SDL_RenderPresent(renderer);
@@ -715,8 +748,6 @@ void CGUIEnvelope::Draw(const CGUIDrawContext &drawContext)
 {
 	DrawBGFill(drawContext);
 	DrawFrame(drawContext);
-	//drawContext.SetDrawColour(drawContext.m_foreColour); 
-	//SDL_RenderDrawLine(drawContext.m_renderer, &m_rect);
 	
 	// calculate horizontal (time-base) scaling, while showing
 	// sustain period as same as delay + attack  + decay + release
@@ -762,14 +793,13 @@ void CGUIEnvelope::GetADSR(float &delay, float &attack, float &peak, float &deca
 }
 
 
-
+//////////////////////////////////////////////////////////////////////////////
 /// CGUIOptionList - Option list control
-
+//////////////////////////////////////////////////////////////////////////////
 CGUIOptionList::CGUIOptionList(int x, int y, int width, int height, const char *name, const char *text)
 	:	CGUIControl(x, y, width, height, CT_OPTIONLIST, name, text),
 		m_selectedIndex(-1)
 {
-
 }
 
 int CGUIOptionList::OnClick(const CGUIDrawContext &drawContext, int x, int y)
@@ -828,7 +858,6 @@ void CGUIOptionList::SetSelectedIndex(short index)
 }
 
 
-
 ///////////////////////////////////////////////////////////////////////
 /// Control Manager
 ///////////////////////////////////////////////////////////////////////
@@ -840,7 +869,8 @@ CGUIManager::CGUIManager(SDL_Rect rect)
 		m_dragStartY(0),
 		m_dragLastX(0),
 		m_dragLastY(0),
-		m_controlChanged(false)
+		m_controlChanged(false),
+        m_highlightedControl(NULL)
 {
 }
 
@@ -996,6 +1026,17 @@ void CGUIManager::OnMouseDown(int x, int y)
 	m_dragStartY = y;
 	m_dragLastX = x;
 	m_dragLastY = y;
+    
+    // "highlight" the clicked control (button)
+    GUIControl *control = GetControl(x, y);
+    if (control && CT_BUTTON == control->type)
+        {
+        m_highlightedControl = control;
+        SDL_Colour savedBGColour = m_drawContext.m_backColour;
+        m_drawContext.m_backColour = { 255, 255, 0 , 0 };
+        control->Draw(m_drawContext);
+        m_drawContext.m_backColour = savedBGColour;
+        }
 }
 
 CGUIControl *CGUIManager::OnMouseMove(int x, int y)
@@ -1029,7 +1070,14 @@ CGUIControl *CGUIManager::OnMouseUp(int x, int y)
 	m_dragStartY = 0;
 	m_dragLastX = 0;
 	m_dragLastY = 0;
-	
+
+    // Unhighlight the highlighted control if neccessary
+    if (m_highlightedControl)
+        {
+        m_highlightedControl->Draw(m_drawContext);
+        m_highlightedControl = NULL;
+        }
+        
 	return control;
 }
 

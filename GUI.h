@@ -1,4 +1,5 @@
 /// GUI class for SDL projects
+/// Copyright James Higgs 2016
 #pragma once
 #include <SDL2/SDL.h>
 #include <vector>
@@ -218,11 +219,11 @@ public:
 	std::vector<CGUIControl *> m_controls;
 	SDL_Rect m_rect;
 	int m_margin;
-	int m_dragStartX;
+	int m_dragStartX;                     // For dragging detection/operation
 	int m_dragStartY;
 	int m_dragLastX;
 	int m_dragLastY;
-	bool m_controlChanged;		// set if a control has changed
-	
+	bool m_controlChanged;                // set if a control has changed
+    CGUIControl *m_highlightedControl;    // For unhighlighting the highlighted control
 };
 
