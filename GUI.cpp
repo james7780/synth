@@ -266,22 +266,22 @@ int CGUIEdit::EditText(const CGUIDrawContext &drawContext)
 		SDL_RenderCopy(renderer, txKeys, &srcRect, &kbRect);
         
         // Draw highylighted (pressed) key
-        if (highLightCount > 0)
+        if (highlightCount > 0)
             {
             int xc = highlightIndex % KBCOLS;
             int yc = highlightIndex / KBCOLS;
             int srcW = imgKeys->w / KBCOLS;
             int srcH = imgKeys->h / KBROWS;
             int srcX = xc * srcW;
-            int srcY = yc * srcH);
+            int srcY = yc * srcH;
             int destW = kbRect.w / KBCOLS;
             int destH = kbRect.h / KBROWS;
             int destX = kbRect.x + xc * destW;
-            int destY = kbRect.y + yc * destH);
+            int destY = kbRect.y + yc * destH;
             SDL_Rect srcHLRect = { srcX, srcY, srcW, srcH };
             SDL_Rect destHLRect = { destX, destY, destW, destH };
             SDL_RenderCopy(renderer, txKeysHilite, &srcHLRect, &destHLRect);
-            highLightCount--;
+            highlightCount--;
             }
 
 		// Draw text
@@ -1028,14 +1028,15 @@ void CGUIManager::OnMouseDown(int x, int y)
 	m_dragLastY = y;
     
     // "highlight" the clicked control (button)
-    GUIControl *control = GetControl(x, y);
-    if (control && CT_BUTTON == control->type)
+    CGUIControl *control = GetControl(x, y);
+    if (control && CT_BUTTON == control->m_type)
         {
         m_highlightedControl = control;
         SDL_Colour savedBGColour = m_drawContext.m_backColour;
-        m_drawContext.m_backColour = { 255, 255, 0 , 0 };
+        m_drawContext.SetBackColour(255, 255, 0 , 0);
         control->Draw(m_drawContext);
         m_drawContext.m_backColour = savedBGColour;
+   		SDL_RenderPresent(m_drawContext.m_renderer);
         }
 }
 
@@ -1050,10 +1051,11 @@ CGUIControl *CGUIManager::OnMouseMove(int x, int y)
 			control = ProcessSwipe(x, y, x - m_dragLastX, y - m_dragLastY);
 			m_dragLastX = x;
 			m_dragLastY = y;
+			return control;
 			}
 		}
 		
-	return control;
+	return NULL;
 }
 
 CGUIControl *CGUIManager::OnMouseUp(int x, int y)
@@ -1076,6 +1078,7 @@ CGUIControl *CGUIManager::OnMouseUp(int x, int y)
         {
         m_highlightedControl->Draw(m_drawContext);
         m_highlightedControl = NULL;
+   		SDL_RenderPresent(m_drawContext.m_renderer);
         }
         
 	return control;
@@ -1105,7 +1108,7 @@ CGUIControl *CGUIManager::ProcessClick(int x, int y)
 CGUIControl *CGUIManager::ProcessSwipe(int x, int y, int dx, int dy)
 {
 	CGUIControl *control = GetControl(x, y);
-	if (control)
+	if (control && CT_SLIDER == control->m_type)
 		{
 		// Convert coord to the controls OCS (object coordinate system)
 		SDL_Rect controlRect = control->GetRect();

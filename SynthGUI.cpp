@@ -42,8 +42,9 @@ struct globalSynthSettings_t {
 } globalSynthSettings;
 
 // Touchscreen handler
-extern int FT5406::Touch_Open();
-eztern void FT5406::Touch_Update();
+extern int Touch_Open();
+extern void Touch_Update();
+extern void Touch_Close();
 
 // mqueue messaging
 static void PostMessage(mqd_t mq, char *buffer, int length)
@@ -185,7 +186,7 @@ int DoPatchSelect(SDL_Renderer *renderer, mqd_t mqEngine, mqd_t mqGUI)
 /// Set up the main synth GUI screen
 static int SetupMainPage(CGUIManager &gm)
 {
-	const int CH = 24;				// char height
+	const int CH = 28;				// char height
 	const int CW = 12;				// char width
 	const int MARGIN = CW;
 	const int INDENT = CW;
@@ -203,8 +204,9 @@ static int SetupMainPage(CGUIManager &gm)
 	
 	// Patch name edit
 	gm.AddControl(MARGIN, MARGIN, LCOL2X, CH, CT_EDIT,    "PatchName", "_patchname");
-	gm.AddControl(MARGIN + LCOL2X + MARGIN, MARGIN, 5 * CW, CH, CT_BUTTON,  "SavePatch", "Save");
-	gm.AddControl(MARGIN + LCOL2X + 2 * MARGIN + 5 * CW, MARGIN, 8 * CW, CH, CT_BUTTON,  "CopyPatchTo", "Copy To");
+	gm.AddControl(MARGIN + LCOL2X + MARGIN, MARGIN, 6 * CW, CH, CT_BUTTON,  "SavePatch", "Save");
+	gm.AddControl(MARGIN + LCOL2X + 2 * MARGIN + 6 * CW, MARGIN, 8 * CW, CH, CT_BUTTON,  "CopyPatchTo", "Copy To");
+	gm.AddControl(WIDTH - MARGIN - 14 * CW, MARGIN, 14 * CW, CH, CT_BUTTON,  "SelectPatch", "Select Patch");
 
 	// OSC 1 parameters
 	gm.AddControl(LCOL1X - MARGIN, ROW1Y, LABELW, CH, CT_LABEL,      "OSC1Label", "OSC1");
@@ -279,8 +281,6 @@ static int SetupMainPage(CGUIManager &gm)
 100  245  60    17   CT_SLIDER		"ModRangeSlider"	""
 */
 
-	gm.AddControl(MARGIN, HEIGHT - MARGIN - RDY, 160, CH, CT_BUTTON,  "SelectPatch", "Select Patch");
-	
 	CGUIOptionList *wf1OptList = (CGUIOptionList *)gm.GetControl("WF1Option");
 	CGUIOptionList *wf2OptList = (CGUIOptionList *)gm.GetControl("WF2Option");
 	CGUIOptionList *lfoWfOptList = (CGUIOptionList *)gm.GetControl("LFOWFOption");
@@ -688,6 +688,7 @@ int main(int argc, char *argv[])
 	bool done = false;
 	while(!done)
 		{
+		bool redraw = false;
         Touch_Update();
 			
 		while (SDL_PollEvent(&event))
@@ -740,6 +741,7 @@ int main(int argc, char *argv[])
 							char outBuffer[4] = { 0xB0, 74, value };
 							PostMessage(mqEngine, outBuffer, 3);
 							gm.m_controlChanged = false;
+							redraw = true;
 							}
 						else if (0 == strcmp(control->m_name, "RvbDepth"))
 							{
@@ -749,6 +751,7 @@ int main(int argc, char *argv[])
 							char outBuffer[4] = { 0xB0, 91, value };
 							PostMessage(mqEngine, outBuffer, 3);
 							gm.m_controlChanged = false;
+							redraw = true;
 							}
 						}
 					}
@@ -825,6 +828,8 @@ int main(int argc, char *argv[])
 							PostMessage(mqEngine, outBuffer, 3);
 							gm.m_controlChanged = false;
 							}
+						// trigger redraw
+						redraw = true;
 						}
 					}
 					break;
@@ -850,6 +855,8 @@ int main(int argc, char *argv[])
 			PostMessage(mqEngine, outBuffer, packedBytes + 10);
 			// reset changed flag
 			gm.m_controlChanged = false;
+			// trigger redraw
+			redraw = true;
 			}
 			
 		// Check for data from the synthengine process
@@ -860,25 +867,17 @@ int main(int argc, char *argv[])
 			//printf("msg received: %s\n", mqbuffer);
 			ProcessMessage(mqbuffer, bytes_read);
 			UpdateMainPageFromPatch(gm, workPatch);
+			redraw = true;
 			}
 
-//Touch_Update();
-
-		//SDL_Rect rect;
-		//rect.x = 50;
-		//rect.y = 50;
-		//rect.w = 200;
-		//rect.h = 200;
-		//bigFont->DrawText(renderer, "Hello James", rect, true);
-		//rect.y = 120;
-		//smallFont->DrawText(renderer, "Hello James", rect, true);
-
-		//SDL_RenderDrawLine(renderer, 10, 10, 400, 200);
-		
-		gm.DrawAllControls();
-		
-		//SDL_Flip(screen);
-		SDL_RenderPresent(renderer);
+		// Redraw if neccessary
+		if (redraw)
+			{
+			gm.DrawAllControls();
+			//SDL_Flip(screen);
+			SDL_RenderPresent(renderer);
+			}
+			
 		SDL_Delay(10);
 		}
 
@@ -893,7 +892,7 @@ int main(int argc, char *argv[])
 	mq_close(mqGUI);
 	//mq_unlink(MQUEUE_NAME);    // only server (creator) has to do this
 
-	close(fdTouch);
+	Touch_Close();
 	
 	return 0;
 }

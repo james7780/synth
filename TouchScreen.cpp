@@ -1,19 +1,14 @@
 /// RPi (Linux) touchscreen handler
 /// Copyright James Higgs 2016
 #include <stdio.h>
-//#include <vector>
-//#include <string>
-//#include <math.h>
-//#include <assert.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <linux/input.h>
 #include <SDL2/SDL.h>
 
-//#include "common.h"
-
-namespace FT5406 {
-
 // global!
-int fdTouch = 0;
+static int fdTouch = 0;
 	
 /// Open RPi offical touchscreen divice for touch events
 int Touch_Open()
@@ -118,4 +113,9 @@ void Touch_Update()
 	
 }
 
-} // end namespace
+/// Open RPi offical touchscreen divice for touch events
+void Touch_Close()
+{
+	close(fdTouch);
+}
+
